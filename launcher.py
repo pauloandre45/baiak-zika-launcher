@@ -1,6 +1,6 @@
 """
-Baiak-Zika Launcher
-Auto-update system for game client
+Baiak-Zika Launcher v2
+Auto-update system for game client - Robust Version
 """
 
 import sys
@@ -9,7 +9,8 @@ import json
 import zipfile
 import shutil
 import subprocess
-import threading
+import urllib.request
+import ssl
 from pathlib import Path
 
 try:
@@ -17,8 +18,8 @@ try:
         QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
         QLabel, QPushButton, QProgressBar, QMessageBox, QFrame
     )
-    from PyQt5.QtCore import Qt, QThread, pyqtSignal, QSize
-    from PyQt5.QtGui import QFont, QPixmap, QPalette, QColor, QIcon
+    from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal
+    from PyQt5.QtGui import QFont, QIcon
 except ImportError:
     print("PyQt5 não encontrado. Instalando...")
     os.system("pip install PyQt5")
@@ -26,15 +27,8 @@ except ImportError:
         QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
         QLabel, QPushButton, QProgressBar, QMessageBox, QFrame
     )
-    from PyQt5.QtCore import Qt, QThread, pyqtSignal, QSize
-    from PyQt5.QtGui import QFont, QPixmap, QPalette, QColor, QIcon
-
-try:
-    import requests
-except ImportError:
-    print("requests não encontrado. Instalando...")
-    os.system("pip install requests")
-    import requests
+    from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal
+    from PyQt5.QtGui import QFont, QIcon
 
 
 # ============================================
@@ -44,11 +38,9 @@ CONFIG = {
     "serverName": "Baiak-Zika",
     "clientExecutable": "client.exe",
     "localConfigFile": "local_config.json",
-    # URL do JSON remoto com versões
     "remoteConfigUrl": "https://gist.githubusercontent.com/pauloandre45/e59926d5c0c8cbc9d225e06db7e446ad/raw/SERVIDOR_launcher_config.json",
     "clientDownloadUrl": "https://github.com/pauloandre45/baiak-zika-launcher/releases/download/v1.0.0/Baiak-zika-15.zip",
     "currentVersion": "1.0.0",
-    # Pastas para fazer backup durante atualização
     "backupFolders": ["conf", "characterdata"],
 }
 
@@ -60,164 +52,102 @@ def get_app_path():
     return os.path.dirname(os.path.abspath(__file__))
 
 
-def get_google_drive_confirm_url(url, session):
-    """Lida com confirmação de download do Google Drive para arquivos grandes"""
-    response = session.get(url, stream=True)
-    
-    for key, value in response.cookies.items():
-        if key.startswith('download_warning'):
-            return f"{url}&confirm={value}"
-    
-    # Verifica se tem token de confirmação no HTML
-    if b'confirm=' in response.content:
-        import re
-        match = re.search(b'confirm=([^&"]+)', response.content)
-        if match:
-            return f"{url}&confirm={match.group(1).decode()}"
-    
-    return url
-
-
-class DownloadThread(QThread):
-    """Thread para download com progresso"""
-    progress = pyqtSignal(int)
-    status = pyqtSignal(str)
-    finished_download = pyqtSignal(bool, str)
+class DownloadWorker(QThread):
+    """Worker thread para download com urllib (mais estável)"""
+    progress = pyqtSignal(int, str)  # percent, status
+    finished = pyqtSignal(bool, str)  # success, message
     
     def __init__(self, url, save_path):
         super().__init__()
         self.url = url
         self.save_path = save_path
+        self._running = True
+    
+    def stop(self):
+        self._running = False
     
     def run(self):
         try:
-            self.status.emit("Conectando ao servidor...")
+            self.progress.emit(0, "Conectando ao servidor...")
             
-            session = requests.Session()
-            session.headers.update({
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-            })
+            # Criar contexto SSL que aceita certificados
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
             
-            download_url = self.url
+            # Criar request com headers
+            req = urllib.request.Request(
+                self.url,
+                headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+            )
             
-            # Para Google Drive, precisamos lidar com confirmação de vírus scan
-            if "drive.google.com" in self.url:
-                # Primeira requisição para pegar o token de confirmação
-                response = session.get(self.url, stream=True)
-                
-                # Procura por token de confirmação em cookies ou HTML
-                for key, value in response.cookies.items():
-                    if key.startswith('download_warning'):
-                        download_url = f"{self.url}&confirm={value}"
-                        break
-                
-                # Se não achou em cookies, procura no HTML
-                if download_url == self.url:
-                    content = response.content.decode('utf-8', errors='ignore')
-                    if 'confirm=' in content:
-                        import re
-                        match = re.search(r'confirm=([0-9A-Za-z_-]+)', content)
-                        if match:
-                            download_url = f"{self.url}&confirm={match.group(1)}"
-                    # Tenta também o formato uuid
-                    if 'uuid=' in content:
-                        match = re.search(r'uuid=([0-9a-f-]+)', content)
-                        if match:
-                            download_url = f"{self.url}&confirm=t&uuid={match.group(1)}"
+            # Abrir conexão
+            response = urllib.request.urlopen(req, timeout=60, context=ctx)
             
-            self.status.emit("Baixando atualização...")
+            # Pegar tamanho total
+            total_size = response.headers.get('Content-Length')
+            if total_size:
+                total_size = int(total_size)
             
-            # Faz o download real (timeout maior para arquivos grandes)
-            response = session.get(download_url, stream=True, timeout=300)
+            self.progress.emit(0, f"Baixando... (0 MB)")
             
-            # Verifica se é realmente um arquivo (não uma página HTML)
-            content_type = response.headers.get('content-type', '')
-            if 'text/html' in content_type:
-                # Ainda é página de confirmação, tenta forçar
-                download_url = self.url.replace('uc?export=download', 'uc?export=download&confirm=t')
-                response = session.get(download_url, stream=True, timeout=300)
-            
-            total_size = int(response.headers.get('content-length', 0))
-            
+            # Baixar em chunks
             downloaded = 0
-            with open(self.save_path, 'wb') as f:
-                for chunk in response.iter_content(chunk_size=32768):
-                    if chunk:
-                        f.write(chunk)
-                        downloaded += len(chunk)
-                        if total_size > 0:
-                            progress = int((downloaded / total_size) * 100)
-                            self.progress.emit(progress)
-                        else:
-                            # Se não sabe o tamanho, mostra MB baixados
-                            self.status.emit(f"Baixando... {downloaded // (1024*1024)} MB")
+            chunk_size = 65536  # 64KB chunks
             
-            # Verifica se o arquivo baixado é válido (não é HTML de erro)
-            if os.path.getsize(self.save_path) < 1000:
+            with open(self.save_path, 'wb') as f:
+                while self._running:
+                    chunk = response.read(chunk_size)
+                    if not chunk:
+                        break
+                    
+                    f.write(chunk)
+                    downloaded += len(chunk)
+                    
+                    # Calcular progresso
+                    mb_downloaded = downloaded / (1024 * 1024)
+                    
+                    if total_size:
+                        percent = int((downloaded / total_size) * 100)
+                        mb_total = total_size / (1024 * 1024)
+                        self.progress.emit(percent, f"Baixando... {mb_downloaded:.1f} / {mb_total:.1f} MB")
+                    else:
+                        self.progress.emit(0, f"Baixando... {mb_downloaded:.1f} MB")
+            
+            if not self._running:
+                # Download foi cancelado
+                if os.path.exists(self.save_path):
+                    os.remove(self.save_path)
+                self.finished.emit(False, "Download cancelado")
+                return
+            
+            # Verificar se o arquivo é válido
+            if os.path.getsize(self.save_path) < 10000:
                 with open(self.save_path, 'r', errors='ignore') as f:
-                    content = f.read()
-                    if '<html' in content.lower():
+                    content = f.read(1000)
+                    if '<html' in content.lower() or 'error' in content.lower():
                         os.remove(self.save_path)
-                        self.finished_download.emit(False, "Erro: Google Drive bloqueou o download. Tente novamente.")
+                        self.finished.emit(False, "Erro: Servidor retornou página de erro")
                         return
             
-            self.finished_download.emit(True, "Download concluído!")
+            self.finished.emit(True, "Download concluído!")
             
-        except requests.exceptions.Timeout:
-            self.finished_download.emit(False, "Erro: Timeout - servidor demorou muito para responder")
-        except requests.exceptions.ConnectionError:
-            self.finished_download.emit(False, "Erro: Sem conexão com a internet")
+        except urllib.error.URLError as e:
+            self.finished.emit(False, f"Erro de conexão: {str(e.reason)}")
         except Exception as e:
-            self.finished_download.emit(False, f"Erro no download: {str(e)}")
-
-
-class UpdateChecker(QThread):
-    """Thread para verificar atualizações"""
-    result = pyqtSignal(bool, str, dict)  # needs_update, message, remote_config
-    
-    def __init__(self, remote_url, local_version):
-        super().__init__()
-        self.remote_url = remote_url
-        self.local_version = local_version
-    
-    def run(self):
-        try:
-            response = requests.get(self.remote_url, timeout=10)
-            if response.status_code == 200:
-                remote_config = response.json()
-                remote_version = remote_config.get("clientVersion", "0.0.0")
-                
-                if self.compare_versions(remote_version, self.local_version) > 0:
-                    self.result.emit(True, f"Nova versão disponível: {remote_version}", remote_config)
-                else:
-                    self.result.emit(False, "Cliente atualizado!", remote_config)
-            else:
-                self.result.emit(False, "Não foi possível verificar atualizações", {})
-        except Exception as e:
-            self.result.emit(False, f"Erro ao verificar: {str(e)}", {})
-    
-    def compare_versions(self, v1, v2):
-        """Compara versões (1.0.0 vs 1.0.1)"""
-        v1_parts = [int(x) for x in v1.split('.')]
-        v2_parts = [int(x) for x in v2.split('.')]
-        
-        for i in range(max(len(v1_parts), len(v2_parts))):
-            v1_val = v1_parts[i] if i < len(v1_parts) else 0
-            v2_val = v2_parts[i] if i < len(v2_parts) else 0
-            if v1_val > v2_val:
-                return 1
-            elif v1_val < v2_val:
-                return -1
-        return 0
+            self.finished.emit(False, f"Erro: {str(e)}")
 
 
 class BaiakZikaLauncher(QMainWindow):
     def __init__(self):
         super().__init__()
         self.app_path = get_app_path()
+        self.download_thread = None
+        self.remote_config = {}
         self.load_local_config()
         self.init_ui()
-        self.check_for_updates()
+        # Verificar atualizações após a janela abrir
+        QTimer.singleShot(500, self.check_for_updates)
     
     def load_local_config(self):
         """Carrega configuração local"""
@@ -235,8 +165,11 @@ class BaiakZikaLauncher(QMainWindow):
     def save_local_config(self):
         """Salva configuração local"""
         config_path = os.path.join(self.app_path, CONFIG["localConfigFile"])
-        with open(config_path, 'w') as f:
-            json.dump(self.local_config, f, indent=2)
+        try:
+            with open(config_path, 'w') as f:
+                json.dump(self.local_config, f, indent=2)
+        except Exception as e:
+            print(f"Erro ao salvar config: {e}")
     
     def init_ui(self):
         """Inicializa interface"""
@@ -269,6 +202,7 @@ class BaiakZikaLauncher(QMainWindow):
                 border-radius: 5px;
                 text-align: center;
                 background-color: #16213e;
+                color: white;
             }
             QProgressBar::chunk {
                 background-color: #e94560;
@@ -301,7 +235,7 @@ class BaiakZikaLauncher(QMainWindow):
         layout.addStretch()
         
         # Status
-        self.status_label = QLabel("Verificando atualizações...")
+        self.status_label = QLabel("Iniciando...")
         self.status_label.setFont(QFont('Arial', 10))
         self.status_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.status_label)
@@ -310,6 +244,7 @@ class BaiakZikaLauncher(QMainWindow):
         self.progress_bar = QProgressBar()
         self.progress_bar.setFixedHeight(25)
         self.progress_bar.setVisible(False)
+        self.progress_bar.setTextVisible(True)
         layout.addWidget(self.progress_bar)
         
         # Versão
@@ -351,57 +286,92 @@ class BaiakZikaLauncher(QMainWindow):
         """Verifica se há atualizações"""
         self.status_label.setText("Verificando atualizações...")
         
-        # Se não tem URL remota configurada, apenas habilita o botão jogar
-        if "SEU_USUARIO" in CONFIG["remoteConfigUrl"] or "SEU_GIST_ID" in CONFIG["remoteConfigUrl"]:
-            self.status_label.setText("⚠ Configure a URL remota para auto-update")
+        try:
+            # Criar contexto SSL
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+            
+            req = urllib.request.Request(
+                CONFIG["remoteConfigUrl"],
+                headers={'User-Agent': 'Mozilla/5.0'}
+            )
+            
+            response = urllib.request.urlopen(req, timeout=10, context=ctx)
+            data = response.read().decode('utf-8')
+            self.remote_config = json.loads(data)
+            
+            remote_version = self.remote_config.get("clientVersion", "0.0.0")
+            local_version = self.local_config.get("version", "0.0.0")
+            
+            if self.compare_versions(remote_version, local_version) > 0:
+                self.status_label.setText(f"Nova versão disponível: {remote_version}")
+                self.update_btn.setVisible(True)
+                self.play_btn.setEnabled(True)
+            else:
+                self.status_label.setText("Cliente atualizado!")
+                self.play_btn.setEnabled(True)
+                self.update_btn.setVisible(False)
+                
+        except Exception as e:
+            self.status_label.setText(f"Erro ao verificar: {str(e)[:50]}")
             self.play_btn.setEnabled(True)
-            return
-        
-        self.checker = UpdateChecker(
-            CONFIG["remoteConfigUrl"],
-            self.local_config.get("version", "1.0.0")
-        )
-        self.checker.result.connect(self.on_update_check_complete)
-        self.checker.start()
+            self.update_btn.setVisible(True)  # Permitir atualização manual
     
-    def on_update_check_complete(self, needs_update, message, remote_config):
-        """Callback quando verificação termina"""
-        self.status_label.setText(message)
-        
-        if needs_update:
-            self.update_btn.setVisible(True)
-            self.play_btn.setEnabled(False)
-            self.remote_config = remote_config
-        else:
-            self.play_btn.setEnabled(True)
-            self.update_btn.setVisible(False)
+    def compare_versions(self, v1, v2):
+        """Compara versões (1.0.0 vs 1.0.1)"""
+        try:
+            v1_parts = [int(x) for x in v1.split('.')]
+            v2_parts = [int(x) for x in v2.split('.')]
+            
+            for i in range(max(len(v1_parts), len(v2_parts))):
+                v1_val = v1_parts[i] if i < len(v1_parts) else 0
+                v2_val = v2_parts[i] if i < len(v2_parts) else 0
+                if v1_val > v2_val:
+                    return 1
+                elif v1_val < v2_val:
+                    return -1
+            return 0
+        except:
+            return 0
     
     def start_update(self):
         """Inicia download da atualização"""
         self.update_btn.setEnabled(False)
+        self.play_btn.setEnabled(False)
         self.progress_bar.setVisible(True)
         self.progress_bar.setValue(0)
         
-        # URL de download (tenta ambos os nomes de campo)
-        download_url = self.remote_config.get("newClientUrl") or self.remote_config.get("clientDownloadUrl", CONFIG["clientDownloadUrl"])
+        # URL de download
+        download_url = self.remote_config.get("newClientUrl") or \
+                       self.remote_config.get("clientDownloadUrl") or \
+                       CONFIG["clientDownloadUrl"]
         
         # Caminho para salvar
         zip_path = os.path.join(self.app_path, "update.zip")
         
-        self.downloader = DownloadThread(download_url, zip_path)
-        self.downloader.progress.connect(self.progress_bar.setValue)
-        self.downloader.status.connect(self.status_label.setText)
-        self.downloader.finished_download.connect(self.on_download_complete)
-        self.downloader.start()
+        # Criar thread de download
+        self.download_thread = DownloadWorker(download_url, zip_path)
+        self.download_thread.progress.connect(self.on_download_progress)
+        self.download_thread.finished.connect(self.on_download_complete)
+        self.download_thread.start()
+    
+    def on_download_progress(self, percent, status):
+        """Atualiza progresso do download"""
+        self.progress_bar.setValue(percent)
+        self.status_label.setText(status)
     
     def on_download_complete(self, success, message):
         """Callback quando download termina"""
         if success:
             self.status_label.setText("Extraindo arquivos...")
-            self.extract_update()
+            # Usar QTimer para não bloquear a UI
+            QTimer.singleShot(100, self.extract_update)
         else:
             self.status_label.setText(message)
             self.update_btn.setEnabled(True)
+            self.play_btn.setEnabled(True)
+            self.progress_bar.setVisible(False)
             QMessageBox.critical(self, "Erro", message)
     
     def extract_update(self):
@@ -438,7 +408,7 @@ class BaiakZikaLauncher(QMainWindow):
             os.remove(zip_path)
             
             # Atualiza versão local
-            if hasattr(self, 'remote_config') and self.remote_config:
+            if self.remote_config:
                 self.local_config["version"] = self.remote_config.get("clientVersion", "1.0.0")
                 self.save_local_config()
                 self.version_label.setText(f"Versão: {self.local_config['version']}")
@@ -454,6 +424,8 @@ class BaiakZikaLauncher(QMainWindow):
             self.status_label.setText(f"Erro na extração: {str(e)}")
             QMessageBox.critical(self, "Erro", f"Erro ao extrair: {str(e)}")
             self.update_btn.setEnabled(True)
+            self.play_btn.setEnabled(True)
+            self.progress_bar.setVisible(False)
     
     def start_game(self):
         """Inicia o cliente do jogo"""
@@ -462,9 +434,14 @@ class BaiakZikaLauncher(QMainWindow):
         if os.path.exists(client_path):
             try:
                 self.status_label.setText("Iniciando jogo...")
-                subprocess.Popen([client_path], cwd=self.app_path)
+                # Usar subprocess.Popen com flags corretas
+                if sys.platform == 'win32':
+                    subprocess.Popen([client_path], cwd=self.app_path, 
+                                   creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP)
+                else:
+                    subprocess.Popen([client_path], cwd=self.app_path)
                 # Fecha o launcher após iniciar o jogo
-                QApplication.quit()
+                QTimer.singleShot(1000, QApplication.quit)
             except Exception as e:
                 QMessageBox.critical(self, "Erro", f"Erro ao iniciar: {str(e)}")
         else:
@@ -476,6 +453,13 @@ class BaiakZikaLauncher(QMainWindow):
             )
             self.update_btn.setVisible(True)
             self.update_btn.setEnabled(True)
+    
+    def closeEvent(self, event):
+        """Ao fechar a janela"""
+        if self.download_thread and self.download_thread.isRunning():
+            self.download_thread.stop()
+            self.download_thread.wait(2000)
+        event.accept()
 
 
 def main():
