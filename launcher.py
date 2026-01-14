@@ -127,15 +127,15 @@ class DownloadThread(QThread):
             
             self.status.emit("Baixando atualização...")
             
-            # Faz o download real
-            response = session.get(download_url, stream=True, timeout=30)
+            # Faz o download real (timeout maior para arquivos grandes)
+            response = session.get(download_url, stream=True, timeout=300)
             
             # Verifica se é realmente um arquivo (não uma página HTML)
             content_type = response.headers.get('content-type', '')
             if 'text/html' in content_type:
                 # Ainda é página de confirmação, tenta forçar
                 download_url = self.url.replace('uc?export=download', 'uc?export=download&confirm=t')
-                response = session.get(download_url, stream=True, timeout=30)
+                response = session.get(download_url, stream=True, timeout=300)
             
             total_size = int(response.headers.get('content-length', 0))
             
@@ -382,8 +382,8 @@ class BaiakZikaLauncher(QMainWindow):
         self.progress_bar.setVisible(True)
         self.progress_bar.setValue(0)
         
-        # URL de download
-        download_url = self.remote_config.get("clientDownloadUrl", CONFIG["clientDownloadUrl"])
+        # URL de download (tenta ambos os nomes de campo)
+        download_url = self.remote_config.get("newClientUrl") or self.remote_config.get("clientDownloadUrl", CONFIG["clientDownloadUrl"])
         
         # Caminho para salvar
         zip_path = os.path.join(self.app_path, "update.zip")
