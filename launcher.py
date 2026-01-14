@@ -439,6 +439,7 @@ class BaiakZikaLauncher(QMainWindow):
             
             self.status_label.setText("✓ Atualização concluída!")
             self.progress_bar.setVisible(False)
+            self.play_btn.setVisible(True)  # Mostrar botão JOGAR
             self.play_btn.setEnabled(True)
             self.update_btn.setVisible(False)
             
