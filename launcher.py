@@ -36,7 +36,7 @@ except ImportError:
 # ============================================
 CONFIG = {
     "serverName": "Baiak-Zika",
-    "clientExecutable": "client.exe",
+    "clientExecutable": "Baiak-zika-15/bin/client.exe",  # Caminho do client dentro do ZIP extraído
     "localConfigFile": "local_config.json",
     "remoteConfigUrl": "https://gist.githubusercontent.com/pauloandre45/e59926d5c0c8cbc9d225e06db7e446ad/raw/SERVIDOR_launcher_config.json",
     "clientDownloadUrl": "https://github.com/pauloandre45/baiak-zika-launcher/releases/download/v1.0.0/Baiak-zika-15.zip",
@@ -304,19 +304,43 @@ class BaiakZikaLauncher(QMainWindow):
             remote_version = self.remote_config.get("clientVersion", "0.0.0")
             local_version = self.local_config.get("version", "0.0.0")
             
-            if self.compare_versions(remote_version, local_version) > 0:
+            # Verificar se o client existe
+            client_path = os.path.join(self.app_path, CONFIG["clientExecutable"])
+            client_exists = os.path.exists(client_path)
+            
+            if not client_exists:
+                # Não tem client - só mostra ATUALIZAR
+                self.status_label.setText("Cliente não instalado - Clique em ATUALIZAR")
+                self.update_btn.setVisible(True)
+                self.update_btn.setEnabled(True)
+                self.play_btn.setVisible(False)
+            elif self.compare_versions(remote_version, local_version) > 0:
+                # Tem client mas versão antiga - mostra ambos
                 self.status_label.setText(f"Nova versão disponível: {remote_version}")
                 self.update_btn.setVisible(True)
+                self.update_btn.setEnabled(True)
+                self.play_btn.setVisible(True)
                 self.play_btn.setEnabled(True)
             else:
+                # Client atualizado - só mostra JOGAR
                 self.status_label.setText("Cliente atualizado!")
+                self.play_btn.setVisible(True)
                 self.play_btn.setEnabled(True)
                 self.update_btn.setVisible(False)
                 
         except Exception as e:
             self.status_label.setText(f"Erro ao verificar: {str(e)[:50]}")
-            self.play_btn.setEnabled(True)
-            self.update_btn.setVisible(True)  # Permitir atualização manual
+            # Verificar se client existe mesmo com erro de conexão
+            client_path = os.path.join(self.app_path, CONFIG["clientExecutable"])
+            if os.path.exists(client_path):
+                self.play_btn.setVisible(True)
+                self.play_btn.setEnabled(True)
+                self.update_btn.setVisible(True)
+                self.update_btn.setEnabled(True)
+            else:
+                self.play_btn.setVisible(False)
+                self.update_btn.setVisible(True)
+                self.update_btn.setEnabled(True)
     
     def compare_versions(self, v1, v2):
         """Compara versões (1.0.0 vs 1.0.1)"""
