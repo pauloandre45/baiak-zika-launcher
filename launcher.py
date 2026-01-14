@@ -258,13 +258,13 @@ class BaiakZikaLauncher(QMainWindow):
         btn_layout = QHBoxLayout()
         
         self.play_btn = QPushButton("▶  JOGAR")
-        self.play_btn.setFixedSize(200, 50)
+        self.play_btn.setFixedSize(150, 50)
         self.play_btn.clicked.connect(self.start_game)
         self.play_btn.setEnabled(False)
         btn_layout.addWidget(self.play_btn)
         
         self.update_btn = QPushButton("⟳  ATUALIZAR")
-        self.update_btn.setFixedSize(150, 50)
+        self.update_btn.setFixedSize(130, 50)
         self.update_btn.setStyleSheet("""
             QPushButton {
                 background-color: #0f3460;
@@ -279,6 +279,24 @@ class BaiakZikaLauncher(QMainWindow):
         self.update_btn.clicked.connect(self.start_update)
         self.update_btn.setVisible(False)
         btn_layout.addWidget(self.update_btn)
+        
+        self.repair_btn = QPushButton("🔧 REPARAR")
+        self.repair_btn.setFixedSize(110, 50)
+        self.repair_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #6b4c9a;
+                font-size: 12px;
+            }
+            QPushButton:hover {
+                background-color: #8b6cba;
+            }
+            QPushButton:disabled {
+                background-color: #333;
+            }
+        """)
+        self.repair_btn.clicked.connect(self.start_repair)
+        self.repair_btn.setVisible(False)
+        btn_layout.addWidget(self.repair_btn)
         
         layout.addLayout(btn_layout)
     
@@ -314,19 +332,24 @@ class BaiakZikaLauncher(QMainWindow):
                 self.update_btn.setVisible(True)
                 self.update_btn.setEnabled(True)
                 self.play_btn.setVisible(False)
+                self.repair_btn.setVisible(False)
             elif self.compare_versions(remote_version, local_version) > 0:
-                # Tem client mas versão antiga - mostra ambos
+                # Tem client mas versão antiga - mostra JOGAR e ATUALIZAR
                 self.status_label.setText(f"Nova versão disponível: {remote_version}")
                 self.update_btn.setVisible(True)
                 self.update_btn.setEnabled(True)
                 self.play_btn.setVisible(True)
                 self.play_btn.setEnabled(True)
+                self.repair_btn.setVisible(True)
+                self.repair_btn.setEnabled(True)
             else:
-                # Client atualizado - só mostra JOGAR
+                # Client atualizado - mostra JOGAR e REPARAR
                 self.status_label.setText("Cliente atualizado!")
                 self.play_btn.setVisible(True)
                 self.play_btn.setEnabled(True)
                 self.update_btn.setVisible(False)
+                self.repair_btn.setVisible(True)
+                self.repair_btn.setEnabled(True)
                 
         except Exception as e:
             self.status_label.setText(f"Erro ao verificar: {str(e)[:50]}")
@@ -379,6 +402,21 @@ class BaiakZikaLauncher(QMainWindow):
         self.download_thread.progress.connect(self.on_download_progress)
         self.download_thread.finished.connect(self.on_download_complete)
         self.download_thread.start()
+    
+    def start_repair(self):
+        """Força o download do client (reparar arquivos)"""
+        reply = QMessageBox.question(
+            self, 
+            "Reparar Cliente",
+            "Isso vai baixar novamente todos os arquivos do cliente.\n"
+            "Suas configurações serão mantidas.\n\n"
+            "Deseja continuar?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+        
+        if reply == QMessageBox.Yes:
+            self.start_update()
     
     def on_download_progress(self, percent, status):
         """Atualiza progresso do download"""
