@@ -20,14 +20,22 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pyinstaller PyQt5 requests
+        pip install pyinstaller PyQt5 requests pillow
     
     - name: Build EXE
       run: |
-        pyinstaller --onefile --windowed --name "Baiak-Zika" launcher.py
+        pyinstaller --onefile --windowed --name "Baiak-Zika" --icon="icon.ico" --add-data "assets;assets" --add-data "icon.ico;." launcher.py
+    
+    - name: Create Release Package
+      run: |
+        mkdir -p Baiak-Zika-Windows
+        copy dist\Baiak-Zika.exe Baiak-Zika-Windows\
+        copy icon.ico Baiak-Zika-Windows\ 2>nul || echo "No icon"
+        xcopy /E /I assets Baiak-Zika-Windows\assets 2>nul || echo "No assets folder"
+      shell: cmd
     
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
         name: Baiak-Zika-Windows
-        path: dist/Baiak-Zika.exe
+        path: Baiak-Zika-Windows/

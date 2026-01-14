@@ -1,6 +1,6 @@
 """
 Baiak-Zika Launcher v2
-Auto-update system for game client - Robust Version
+Auto-update system for game client - Modern UI Version
 """
 
 import sys
@@ -11,24 +11,29 @@ import shutil
 import subprocess
 import urllib.request
 import ssl
+import base64
 from pathlib import Path
 
 try:
     from PyQt5.QtWidgets import (
         QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-        QLabel, QPushButton, QProgressBar, QMessageBox, QFrame
+        QLabel, QPushButton, QProgressBar, QMessageBox, QFrame,
+        QGraphicsDropShadowEffect, QSizePolicy, QSpacerItem
     )
-    from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal
-    from PyQt5.QtGui import QFont, QIcon
+    from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal, QPropertyAnimation, QEasingCurve, QSize, QRect
+    from PyQt5.QtGui import (QFont, QIcon, QFontDatabase, QLinearGradient, QPalette, 
+                             QColor, QPainter, QBrush, QPen, QPixmap, QPainterPath, QImage)
 except ImportError:
     print("PyQt5 não encontrado. Instalando...")
     os.system("pip install PyQt5")
     from PyQt5.QtWidgets import (
         QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-        QLabel, QPushButton, QProgressBar, QMessageBox, QFrame
+        QLabel, QPushButton, QProgressBar, QMessageBox, QFrame,
+        QGraphicsDropShadowEffect, QSizePolicy, QSpacerItem
     )
-    from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal
-    from PyQt5.QtGui import QFont, QIcon
+    from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal, QPropertyAnimation, QEasingCurve, QSize, QRect
+    from PyQt5.QtGui import (QFont, QIcon, QFontDatabase, QLinearGradient, QPalette, 
+                             QColor, QPainter, QBrush, QPen, QPixmap, QPainterPath, QImage)
 
 
 # ============================================
@@ -44,12 +49,63 @@ CONFIG = {
     "backupFolders": ["conf", "characterdata"],
 }
 
+# Estilos globais para MessageBox
+MESSAGEBOX_STYLE = """
+    QMessageBox {
+        background-color: #1a1020;
+        border: 2px solid #ffd700;
+        border-radius: 10px;
+    }
+    QMessageBox QLabel {
+        color: #fff;
+        font-size: 13px;
+        padding: 10px;
+    }
+    QMessageBox QPushButton {
+        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+            stop:0 #884422, stop:1 #552211);
+        color: #ffd700;
+        border: 1px solid #ffd700;
+        border-radius: 5px;
+        padding: 8px 25px;
+        font-weight: bold;
+        min-width: 80px;
+    }
+    QMessageBox QPushButton:hover {
+        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+            stop:0 #aa5533, stop:1 #773322);
+    }
+"""
+
 
 def get_app_path():
     """Retorna o caminho do executável ou script"""
     if getattr(sys, 'frozen', False):
         return os.path.dirname(sys.executable)
     return os.path.dirname(os.path.abspath(__file__))
+
+
+def styled_message(parent, title, text, msg_type="info"):
+    """Exibe MessageBox estilizada"""
+    msg = QMessageBox(parent)
+    msg.setWindowTitle(title)
+    msg.setText(text)
+    msg.setStyleSheet(MESSAGEBOX_STYLE)
+    
+    if msg_type == "error":
+        msg.setIcon(QMessageBox.Critical)
+    elif msg_type == "warning":
+        msg.setIcon(QMessageBox.Warning)
+    elif msg_type == "question":
+        msg.setIcon(QMessageBox.Question)
+        msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        msg.setDefaultButton(QMessageBox.No)
+        return msg.exec_() == QMessageBox.Yes
+    else:
+        msg.setIcon(QMessageBox.Information)
+    
+    msg.exec_()
+    return True
 
 
 class DownloadWorker(QThread):
@@ -138,6 +194,146 @@ class DownloadWorker(QThread):
             self.finished.emit(False, f"Erro: {str(e)}")
 
 
+class BackgroundWidget(QWidget):
+    """Widget com background personalizado"""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.background_pixmap = None
+        self.load_background()
+    
+    def load_background(self):
+        """Carrega imagem de background"""
+        bg_path = os.path.join(get_app_path(), "assets", "background.png")
+        if os.path.exists(bg_path):
+            self.background_pixmap = QPixmap(bg_path)
+        else:
+            # Cria gradient como fallback
+            self.background_pixmap = None
+    
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        
+        if self.background_pixmap and not self.background_pixmap.isNull():
+            # Desenha background escalado
+            scaled = self.background_pixmap.scaled(
+                self.size(), Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation
+            )
+            x = (self.width() - scaled.width()) // 2
+            y = (self.height() - scaled.height()) // 2
+            painter.drawPixmap(x, y, scaled)
+            
+            # Overlay escuro para melhor legibilidade
+            painter.fillRect(self.rect(), QColor(0, 0, 0, 100))
+        else:
+            # Gradient fallback estilo Baiak-Zika (roxo/vermelho/preto)
+            gradient = QLinearGradient(0, 0, 0, self.height())
+            gradient.setColorAt(0.0, QColor(45, 20, 60))      # Roxo escuro topo
+            gradient.setColorAt(0.3, QColor(30, 15, 45))      # Roxo mais escuro
+            gradient.setColorAt(0.6, QColor(60, 20, 30))      # Vermelho escuro
+            gradient.setColorAt(1.0, QColor(20, 10, 15))      # Quase preto embaixo
+            painter.fillRect(self.rect(), gradient)
+
+
+class StyledButton(QPushButton):
+    """Botão estilizado com efeitos"""
+    def __init__(self, text, color_type="primary", parent=None):
+        super().__init__(text, parent)
+        self.color_type = color_type
+        self.setup_style()
+        self.setCursor(Qt.PointingHandCursor)
+        
+        # Efeito de sombra
+        shadow = QGraphicsDropShadowEffect()
+        shadow.setBlurRadius(15)
+        shadow.setColor(QColor(0, 0, 0, 150))
+        shadow.setOffset(0, 4)
+        self.setGraphicsEffect(shadow)
+    
+    def setup_style(self):
+        if self.color_type == "primary":
+            # Botão JOGAR - Vermelho/Dourado épico
+            self.setStyleSheet("""
+                QPushButton {
+                    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                        stop:0 #ff4444, stop:0.5 #cc2222, stop:1 #991111);
+                    color: #ffe4b5;
+                    border: 2px solid #ffd700;
+                    border-radius: 8px;
+                    font-size: 18px;
+                    font-weight: bold;
+                    padding: 15px 40px;
+                    text-shadow: 2px 2px 4px #000;
+                }
+                QPushButton:hover {
+                    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                        stop:0 #ff6666, stop:0.5 #dd3333, stop:1 #bb2222);
+                    border: 2px solid #ffdd44;
+                }
+                QPushButton:pressed {
+                    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                        stop:0 #cc2222, stop:0.5 #aa1111, stop:1 #880000);
+                }
+                QPushButton:disabled {
+                    background: #444;
+                    border: 2px solid #666;
+                    color: #888;
+                }
+            """)
+        elif self.color_type == "secondary":
+            # Botão ATUALIZAR - Azul/Roxo
+            self.setStyleSheet("""
+                QPushButton {
+                    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                        stop:0 #6644aa, stop:0.5 #553399, stop:1 #442277);
+                    color: #ddd;
+                    border: 2px solid #8866cc;
+                    border-radius: 8px;
+                    font-size: 13px;
+                    font-weight: bold;
+                    padding: 12px 25px;
+                }
+                QPushButton:hover {
+                    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                        stop:0 #7755bb, stop:0.5 #6644aa, stop:1 #553388);
+                    border: 2px solid #9977dd;
+                }
+                QPushButton:pressed {
+                    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                        stop:0 #553399, stop:0.5 #442277, stop:1 #331166);
+                }
+                QPushButton:disabled {
+                    background: #333;
+                    border: 2px solid #555;
+                    color: #666;
+                }
+            """)
+        elif self.color_type == "repair":
+            # Botão REPARAR - Laranja/Dourado
+            self.setStyleSheet("""
+                QPushButton {
+                    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                        stop:0 #dd8800, stop:0.5 #bb6600, stop:1 #994400);
+                    color: #fff;
+                    border: 2px solid #ffaa00;
+                    border-radius: 8px;
+                    font-size: 12px;
+                    font-weight: bold;
+                    padding: 10px 20px;
+                }
+                QPushButton:hover {
+                    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                        stop:0 #ee9900, stop:0.5 #cc7700, stop:1 #aa5500);
+                    border: 2px solid #ffbb22;
+                }
+                QPushButton:disabled {
+                    background: #333;
+                    border: 2px solid #555;
+                    color: #666;
+                }
+            """)
+
+
 class BaiakZikaLauncher(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -172,133 +368,229 @@ class BaiakZikaLauncher(QMainWindow):
             print(f"Erro ao salvar config: {e}")
     
     def init_ui(self):
-        """Inicializa interface"""
+        """Inicializa interface moderna"""
         self.setWindowTitle(f"{CONFIG['serverName']} Launcher")
-        self.setFixedSize(500, 350)
-        self.setStyleSheet("""
-            QMainWindow {
-                background-color: #1a1a2e;
-            }
-            QLabel {
-                color: #eee;
-            }
+        self.setFixedSize(700, 450)
+        self.setWindowFlags(Qt.FramelessWindowHint)  # Remove borda padrão
+        self.setAttribute(Qt.WA_TranslucentBackground)
+        
+        # Widget central com background
+        self.central = BackgroundWidget()
+        self.setCentralWidget(self.central)
+        
+        # Layout principal
+        main_layout = QVBoxLayout(self.central)
+        main_layout.setSpacing(10)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # ========== BARRA DE TÍTULO CUSTOMIZADA ==========
+        title_bar = QWidget()
+        title_bar.setFixedHeight(35)
+        title_bar.setStyleSheet("background-color: rgba(0, 0, 0, 0.7);")
+        title_bar_layout = QHBoxLayout(title_bar)
+        title_bar_layout.setContentsMargins(10, 0, 10, 0)
+        
+        # Título na barra
+        window_title = QLabel(f"⚔️ {CONFIG['serverName']} Launcher")
+        window_title.setStyleSheet("color: #ffd700; font-size: 12px; font-weight: bold;")
+        title_bar_layout.addWidget(window_title)
+        
+        title_bar_layout.addStretch()
+        
+        # Botão minimizar
+        min_btn = QPushButton("─")
+        min_btn.setFixedSize(30, 25)
+        min_btn.setStyleSheet("""
             QPushButton {
-                background-color: #e94560;
-                color: white;
+                background: transparent;
+                color: #aaa;
                 border: none;
-                padding: 15px 30px;
                 font-size: 14px;
-                font-weight: bold;
-                border-radius: 5px;
             }
             QPushButton:hover {
-                background-color: #ff6b6b;
-            }
-            QPushButton:disabled {
-                background-color: #555;
-            }
-            QProgressBar {
-                border: 2px solid #333;
-                border-radius: 5px;
-                text-align: center;
-                background-color: #16213e;
-                color: white;
-            }
-            QProgressBar::chunk {
-                background-color: #e94560;
-                border-radius: 3px;
+                background: rgba(255,255,255,0.1);
+                color: #fff;
             }
         """)
+        min_btn.clicked.connect(self.showMinimized)
+        title_bar_layout.addWidget(min_btn)
         
-        # Widget central
-        central = QWidget()
-        self.setCentralWidget(central)
-        layout = QVBoxLayout(central)
-        layout.setSpacing(20)
-        layout.setContentsMargins(30, 30, 30, 30)
+        # Botão fechar
+        close_btn = QPushButton("✕")
+        close_btn.setFixedSize(30, 25)
+        close_btn.setStyleSheet("""
+            QPushButton {
+                background: transparent;
+                color: #aaa;
+                border: none;
+                font-size: 14px;
+            }
+            QPushButton:hover {
+                background: #cc2222;
+                color: #fff;
+            }
+        """)
+        close_btn.clicked.connect(self.close)
+        title_bar_layout.addWidget(close_btn)
         
-        # Título
-        title = QLabel(CONFIG['serverName'])
-        title.setFont(QFont('Arial', 28, QFont.Bold))
-        title.setAlignment(Qt.AlignCenter)
-        title.setStyleSheet("color: #e94560;")
-        layout.addWidget(title)
+        main_layout.addWidget(title_bar)
         
-        # Subtítulo
-        subtitle = QLabel("Launcher Oficial")
-        subtitle.setFont(QFont('Arial', 12))
-        subtitle.setAlignment(Qt.AlignCenter)
-        subtitle.setStyleSheet("color: #888;")
-        layout.addWidget(subtitle)
+        # ========== CONTEÚDO PRINCIPAL ==========
+        content = QWidget()
+        content.setStyleSheet("background: transparent;")
+        content_layout = QVBoxLayout(content)
+        content_layout.setSpacing(15)
+        content_layout.setContentsMargins(40, 20, 40, 30)
+        
+        # Logo
+        logo_container = QWidget()
+        logo_layout = QVBoxLayout(logo_container)
+        logo_layout.setAlignment(Qt.AlignCenter)
+        
+        self.logo_label = QLabel()
+        logo_path = os.path.join(self.app_path, "assets", "logo.png")
+        if os.path.exists(logo_path):
+            logo_pixmap = QPixmap(logo_path)
+            scaled_logo = logo_pixmap.scaledToWidth(350, Qt.SmoothTransformation)
+            self.logo_label.setPixmap(scaled_logo)
+        else:
+            # Texto como fallback
+            self.logo_label.setText(CONFIG['serverName'])
+            self.logo_label.setStyleSheet("""
+                font-size: 48px;
+                font-weight: bold;
+                color: #ff4444;
+                text-shadow: 3px 3px 6px #000;
+            """)
+        self.logo_label.setAlignment(Qt.AlignCenter)
+        
+        # Sombra no logo
+        logo_shadow = QGraphicsDropShadowEffect()
+        logo_shadow.setBlurRadius(30)
+        logo_shadow.setColor(QColor(255, 100, 0, 200))
+        logo_shadow.setOffset(0, 0)
+        self.logo_label.setGraphicsEffect(logo_shadow)
+        
+        logo_layout.addWidget(self.logo_label)
+        content_layout.addWidget(logo_container)
         
         # Espaçador
-        layout.addStretch()
+        content_layout.addStretch()
         
-        # Status
+        # ========== ÁREA DE STATUS ==========
+        status_frame = QFrame()
+        status_frame.setStyleSheet("""
+            QFrame {
+                background-color: rgba(0, 0, 0, 0.6);
+                border: 1px solid rgba(255, 215, 0, 0.3);
+                border-radius: 10px;
+            }
+        """)
+        status_layout = QVBoxLayout(status_frame)
+        status_layout.setContentsMargins(20, 15, 20, 15)
+        
+        # Status label
         self.status_label = QLabel("Iniciando...")
-        self.status_label.setFont(QFont('Arial', 10))
+        self.status_label.setStyleSheet("""
+            color: #ffd700;
+            font-size: 14px;
+            font-weight: bold;
+        """)
         self.status_label.setAlignment(Qt.AlignCenter)
-        layout.addWidget(self.status_label)
+        status_layout.addWidget(self.status_label)
         
-        # Barra de progresso
+        # Barra de progresso estilizada
         self.progress_bar = QProgressBar()
-        self.progress_bar.setFixedHeight(25)
+        self.progress_bar.setFixedHeight(20)
         self.progress_bar.setVisible(False)
         self.progress_bar.setTextVisible(True)
-        layout.addWidget(self.progress_bar)
+        self.progress_bar.setStyleSheet("""
+            QProgressBar {
+                border: 1px solid #ffd700;
+                border-radius: 8px;
+                background-color: rgba(0, 0, 0, 0.5);
+                color: #fff;
+                text-align: center;
+                font-weight: bold;
+            }
+            QProgressBar::chunk {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #ff4400, stop:0.5 #ff6600, stop:1 #ffaa00);
+                border-radius: 7px;
+            }
+        """)
+        status_layout.addWidget(self.progress_bar)
         
-        # Versão
-        self.version_label = QLabel(f"Versão: {self.local_config.get('version', '1.0.0')}")
-        self.version_label.setFont(QFont('Arial', 9))
-        self.version_label.setAlignment(Qt.AlignCenter)
-        self.version_label.setStyleSheet("color: #666;")
-        layout.addWidget(self.version_label)
+        content_layout.addWidget(status_frame)
         
-        # Botões
-        btn_layout = QHBoxLayout()
+        # ========== BOTÕES ==========
+        btn_container = QWidget()
+        btn_layout = QHBoxLayout(btn_container)
+        btn_layout.setSpacing(15)
+        btn_layout.setAlignment(Qt.AlignCenter)
         
-        self.play_btn = QPushButton("▶  JOGAR")
-        self.play_btn.setFixedSize(150, 50)
+        # Botão JOGAR
+        self.play_btn = StyledButton("⚔️  JOGAR", "primary")
+        self.play_btn.setFixedSize(180, 55)
         self.play_btn.clicked.connect(self.start_game)
         self.play_btn.setEnabled(False)
         btn_layout.addWidget(self.play_btn)
         
-        self.update_btn = QPushButton("⟳  ATUALIZAR")
-        self.update_btn.setFixedSize(130, 50)
-        self.update_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #0f3460;
-            }
-            QPushButton:hover {
-                background-color: #16213e;
-            }
-            QPushButton:disabled {
-                background-color: #333;
-            }
-        """)
+        # Botão ATUALIZAR
+        self.update_btn = StyledButton("⬇️  ATUALIZAR", "secondary")
+        self.update_btn.setFixedSize(140, 50)
         self.update_btn.clicked.connect(self.start_update)
         self.update_btn.setVisible(False)
         btn_layout.addWidget(self.update_btn)
         
-        self.repair_btn = QPushButton("🔧 REPARAR")
-        self.repair_btn.setFixedSize(110, 50)
-        self.repair_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #6b4c9a;
-                font-size: 12px;
-            }
-            QPushButton:hover {
-                background-color: #8b6cba;
-            }
-            QPushButton:disabled {
-                background-color: #333;
-            }
-        """)
+        # Botão REPARAR
+        self.repair_btn = StyledButton("🔧 REPARAR", "repair")
+        self.repair_btn.setFixedSize(120, 45)
         self.repair_btn.clicked.connect(self.start_repair)
         self.repair_btn.setVisible(False)
         btn_layout.addWidget(self.repair_btn)
         
-        layout.addLayout(btn_layout)
+        content_layout.addWidget(btn_container)
+        
+        # ========== RODAPÉ ==========
+        footer = QWidget()
+        footer_layout = QHBoxLayout(footer)
+        footer_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Versão
+        self.version_label = QLabel(f"v{self.local_config.get('version', '1.0.0')}")
+        self.version_label.setStyleSheet("color: rgba(255, 215, 0, 0.6); font-size: 11px;")
+        footer_layout.addWidget(self.version_label)
+        
+        footer_layout.addStretch()
+        
+        # Website/Discord
+        website_label = QLabel("🌐 www.baiak-zika.com")
+        website_label.setStyleSheet("color: rgba(255, 255, 255, 0.5); font-size: 10px;")
+        footer_layout.addWidget(website_label)
+        
+        content_layout.addWidget(footer)
+        
+        main_layout.addWidget(content)
+        
+        # Permitir arrastar a janela
+        self.oldPos = None
+    
+    def mousePressEvent(self, event):
+        """Para arrastar a janela"""
+        if event.button() == Qt.LeftButton:
+            self.oldPos = event.globalPos()
+    
+    def mouseMoveEvent(self, event):
+        """Move a janela ao arrastar"""
+        if self.oldPos:
+            delta = event.globalPos() - self.oldPos
+            self.move(self.x() + delta.x(), self.y() + delta.y())
+            self.oldPos = event.globalPos()
+    
+    def mouseReleaseEvent(self, event):
+        """Solta a janela"""
+        self.oldPos = None
     
     def check_for_updates(self):
         """Verifica se há atualizações"""
@@ -405,17 +697,14 @@ class BaiakZikaLauncher(QMainWindow):
     
     def start_repair(self):
         """Força o download do client (reparar arquivos)"""
-        reply = QMessageBox.question(
+        if styled_message(
             self, 
-            "Reparar Cliente",
+            "🔧 Reparar Cliente",
             "Isso vai baixar novamente todos os arquivos do cliente.\n"
             "Suas configurações serão mantidas.\n\n"
             "Deseja continuar?",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No
-        )
-        
-        if reply == QMessageBox.Yes:
+            "question"
+        ):
             self.start_update()
     
     def on_download_progress(self, percent, status):
@@ -434,7 +723,7 @@ class BaiakZikaLauncher(QMainWindow):
             self.update_btn.setEnabled(True)
             self.play_btn.setEnabled(True)
             self.progress_bar.setVisible(False)
-            QMessageBox.critical(self, "Erro", message)
+            styled_message(self, "❌ Erro no Download", message, "error")
     
     def extract_update(self):
         """Extrai arquivos do update"""
@@ -481,11 +770,11 @@ class BaiakZikaLauncher(QMainWindow):
             self.play_btn.setEnabled(True)
             self.update_btn.setVisible(False)
             
-            QMessageBox.information(self, "Sucesso", "Cliente atualizado com sucesso!")
+            styled_message(self, "✅ Sucesso", "Cliente atualizado com sucesso!\n\nClique em JOGAR para iniciar!", "info")
             
         except Exception as e:
             self.status_label.setText(f"Erro na extração: {str(e)}")
-            QMessageBox.critical(self, "Erro", f"Erro ao extrair: {str(e)}")
+            styled_message(self, "❌ Erro na Extração", f"Erro ao extrair arquivos:\n\n{str(e)}", "error")
             self.update_btn.setEnabled(True)
             self.play_btn.setEnabled(True)
             self.progress_bar.setVisible(False)
@@ -506,13 +795,14 @@ class BaiakZikaLauncher(QMainWindow):
                 # Fecha o launcher após iniciar o jogo
                 QTimer.singleShot(1000, QApplication.quit)
             except Exception as e:
-                QMessageBox.critical(self, "Erro", f"Erro ao iniciar: {str(e)}")
+                styled_message(self, "❌ Erro", f"Erro ao iniciar o jogo:\n\n{str(e)}", "error")
         else:
-            QMessageBox.warning(
+            styled_message(
                 self, 
-                "Cliente não encontrado",
-                f"O arquivo {CONFIG['clientExecutable']} não foi encontrado.\n\n"
-                "Clique em ATUALIZAR para baixar o cliente."
+                "⚠️ Cliente não encontrado",
+                f"O arquivo do jogo não foi encontrado.\n\n"
+                "Clique em ATUALIZAR para baixar o cliente.",
+                "warning"
             )
             self.update_btn.setVisible(True)
             self.update_btn.setEnabled(True)
