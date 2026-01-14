@@ -2,7 +2,7 @@ name: Build Launcher
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
   workflow_dispatch:
 
 jobs:
@@ -24,14 +24,14 @@ jobs:
     
     - name: Build EXE
       run: |
-        pyinstaller --onefile --windowed --name "Baiak-Zika" --icon="icon.ico" --add-data "assets;assets" --add-data "icon.ico;." launcher.py
+        pyinstaller --onefile --windowed --name "Baiak-Zika" --icon="icon.ico" --add-data "assets;assets" launcher.py
     
     - name: Create Release Package
       run: |
-        mkdir -p Baiak-Zika-Windows
+        mkdir Baiak-Zika-Windows
         copy dist\Baiak-Zika.exe Baiak-Zika-Windows\
-        copy icon.ico Baiak-Zika-Windows\ 2>nul || echo "No icon"
-        xcopy /E /I assets Baiak-Zika-Windows\assets 2>nul || echo "No assets folder"
+        copy icon.ico Baiak-Zika-Windows\
+        xcopy /E /I assets Baiak-Zika-Windows\assets
       shell: cmd
     
     - name: Upload artifact
