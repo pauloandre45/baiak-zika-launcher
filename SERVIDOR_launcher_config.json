@@ -1,7 +1,7 @@
 {
     "clientVersion": "1.0.0",
     "launcherVersion": "1.0.0",
-    "clientDownloadUrl": "https://drive.google.com/uc?export=download&id=1axpKG8b-gE3HRN1xwez6D_K3SKWlN-9p",
+    "clientDownloadUrl": "https://github.com/pauloandre45/baiak-zika-launcher/releases/download/v1.0.0/Baiak-zika-15.zip",
     "clientExecutable": "client.exe",
     "serverName": "Baiak-Zika",
     "news": "Bem-vindo ao Baiak-Zika!"

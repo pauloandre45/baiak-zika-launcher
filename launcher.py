@@ -46,7 +46,7 @@ CONFIG = {
     "localConfigFile": "local_config.json",
     # URL do JSON remoto com versões
     "remoteConfigUrl": "https://gist.githubusercontent.com/pauloandre45/e59926d5c0c8cbc9d225e06db7e446ad/raw/SERVIDOR_launcher_config.json",
-    "clientDownloadUrl": "https://drive.google.com/uc?export=download&id=1axpKG8b-gE3HRN1xwez6D_K3SKWlN-9p",
+    "clientDownloadUrl": "https://github.com/pauloandre45/baiak-zika-launcher/releases/download/v1.0.0/Baiak-zika-15.zip",
     "currentVersion": "1.0.0",
     # Pastas para fazer backup durante atualização
     "backupFolders": ["conf", "characterdata"],
