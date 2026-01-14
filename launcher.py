@@ -94,30 +94,79 @@ class DownloadThread(QThread):
             self.status.emit("Conectando ao servidor...")
             
             session = requests.Session()
+            session.headers.update({
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            })
             
-            # Para Google Drive, precisamos lidar com confirmação
+            download_url = self.url
+            
+            # Para Google Drive, precisamos lidar com confirmação de vírus scan
             if "drive.google.com" in self.url:
-                download_url = get_google_drive_confirm_url(self.url, session)
-            else:
-                download_url = self.url
-            
-            response = session.get(download_url, stream=True)
-            total_size = int(response.headers.get('content-length', 0))
+                # Primeira requisição para pegar o token de confirmação
+                response = session.get(self.url, stream=True)
+                
+                # Procura por token de confirmação em cookies ou HTML
+                for key, value in response.cookies.items():
+                    if key.startswith('download_warning'):
+                        download_url = f"{self.url}&confirm={value}"
+                        break
+                
+                # Se não achou em cookies, procura no HTML
+                if download_url == self.url:
+                    content = response.content.decode('utf-8', errors='ignore')
+                    if 'confirm=' in content:
+                        import re
+                        match = re.search(r'confirm=([0-9A-Za-z_-]+)', content)
+                        if match:
+                            download_url = f"{self.url}&confirm={match.group(1)}"
+                    # Tenta também o formato uuid
+                    if 'uuid=' in content:
+                        match = re.search(r'uuid=([0-9a-f-]+)', content)
+                        if match:
+                            download_url = f"{self.url}&confirm=t&uuid={match.group(1)}"
             
             self.status.emit("Baixando atualização...")
             
+            # Faz o download real
+            response = session.get(download_url, stream=True, timeout=30)
+            
+            # Verifica se é realmente um arquivo (não uma página HTML)
+            content_type = response.headers.get('content-type', '')
+            if 'text/html' in content_type:
+                # Ainda é página de confirmação, tenta forçar
+                download_url = self.url.replace('uc?export=download', 'uc?export=download&confirm=t')
+                response = session.get(download_url, stream=True, timeout=30)
+            
+            total_size = int(response.headers.get('content-length', 0))
+            
             downloaded = 0
             with open(self.save_path, 'wb') as f:
-                for chunk in response.iter_content(chunk_size=8192):
+                for chunk in response.iter_content(chunk_size=32768):
                     if chunk:
                         f.write(chunk)
                         downloaded += len(chunk)
                         if total_size > 0:
                             progress = int((downloaded / total_size) * 100)
                             self.progress.emit(progress)
+                        else:
+                            # Se não sabe o tamanho, mostra MB baixados
+                            self.status.emit(f"Baixando... {downloaded // (1024*1024)} MB")
+            
+            # Verifica se o arquivo baixado é válido (não é HTML de erro)
+            if os.path.getsize(self.save_path) < 1000:
+                with open(self.save_path, 'r', errors='ignore') as f:
+                    content = f.read()
+                    if '<html' in content.lower():
+                        os.remove(self.save_path)
+                        self.finished_download.emit(False, "Erro: Google Drive bloqueou o download. Tente novamente.")
+                        return
             
             self.finished_download.emit(True, "Download concluído!")
             
+        except requests.exceptions.Timeout:
+            self.finished_download.emit(False, "Erro: Timeout - servidor demorou muito para responder")
+        except requests.exceptions.ConnectionError:
+            self.finished_download.emit(False, "Erro: Sem conexão com a internet")
         except Exception as e:
             self.finished_download.emit(False, f"Erro no download: {str(e)}")
 
