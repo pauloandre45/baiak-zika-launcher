@@ -1,0 +1,97 @@
+========================================
+   BAIAK-ZIKA LAUNCHER
+   Guia de Configuração
+========================================
+
+ARQUIVOS DO LAUNCHER:
+- launcher.py        = Código do launcher
+- local_config.json  = Versão atual instalada
+- requirements.txt   = Dependências Python
+- build_exe.bat      = Script para compilar .exe
+
+========================================
+COMO USAR (PASSO A PASSO):
+========================================
+
+1. CONFIGURAR O LAUNCHER:
+   - Abra o arquivo 'launcher.py' no Notepad++
+   - Procure por 'CONFIG =' (linha ~45)
+   - Altere a 'remoteConfigUrl' para o link do seu JSON
+
+2. CRIAR O JSON REMOTO:
+   
+   Opção A - GitHub Gist (RECOMENDADO):
+   - Acesse: https://gist.github.com
+   - Crie um novo Gist com nome: launcher_config.json
+   - Cole este conteúdo:
+   
+   {
+       "clientVersion": "1.0.0",
+       "launcherVersion": "1.0.0",
+       "clientDownloadUrl": "https://drive.google.com/uc?export=download&id=1axpKG8b-gE3HRN1xwez6D_K3SKWlN-9p",
+       "clientExecutable": "client.exe",
+       "serverName": "Baiak-Zika"
+   }
+   
+   - Clique em "Create public gist"
+   - Clique em "Raw" e copie a URL
+   - Cole essa URL no launcher.py em 'remoteConfigUrl'
+
+   Opção B - Google Drive:
+   - Salve o JSON acima como arquivo
+   - Suba no Google Drive
+   - Compartilhe como público
+   - Use o link: https://drive.google.com/uc?export=download&id=SEU_ID
+
+3. COMPILAR PARA .EXE:
+   
+   No Windows:
+   - Instale Python 3.8+ de https://python.org
+   - Marque "Add Python to PATH" na instalação
+   - Clique duas vezes em 'build_exe.bat'
+   - O .exe vai aparecer na pasta 'dist'
+
+4. DISTRIBUIR:
+   
+   Crie um ZIP contendo:
+   - Baiak-Zika.exe (da pasta dist)
+   - local_config.json
+   - icon.ico (opcional)
+   
+   Distribua para os players!
+
+========================================
+COMO ATUALIZAR O CLIENTE:
+========================================
+
+1. Faça as alterações no cliente
+2. Compacte como client.zip (ou outro nome)
+3. Suba para o Google Drive
+4. Edite o JSON remoto:
+   - Aumente a versão (1.0.0 -> 1.0.1)
+   - Atualize o link se necessário
+
+Quando players abrirem o launcher, vai:
+- Detectar nova versão
+- Baixar automaticamente
+- Extrair e atualizar
+- Manter as configurações do player (pasta conf)
+
+========================================
+DICAS:
+========================================
+
+- O launcher faz backup das pastas 'conf' e 'characterdata'
+  durante atualização (não perde configs do player)
+
+- Para testar, mude a versão no JSON remoto para 1.0.1
+  e veja o launcher detectar a atualização
+
+- Se o download do Google Drive travar, pode ser que
+  o arquivo é muito grande (>100MB). Considere usar
+  um host de arquivos diferente.
+
+========================================
+SUPORTE:
+========================================
+Qualquer dúvida, pergunte!
