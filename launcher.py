@@ -12,6 +12,7 @@ import subprocess
 import urllib.request
 import ssl
 import base64
+import webbrowser
 from pathlib import Path
 
 try:
@@ -440,39 +441,44 @@ class BaiakZikaLauncher(QMainWindow):
         content.setStyleSheet("background: transparent;")
         content_layout = QVBoxLayout(content)
         content_layout.setSpacing(15)
-        content_layout.setContentsMargins(40, 20, 40, 30)
+        content_layout.setContentsMargins(40, 20, 40, 20)
         
-        # Logo
-        logo_container = QWidget()
-        logo_layout = QVBoxLayout(logo_container)
-        logo_layout.setAlignment(Qt.AlignCenter)
+        # ========== TÍTULO ESTILIZADO ==========
+        title_container = QWidget()
+        title_layout = QVBoxLayout(title_container)
+        title_layout.setAlignment(Qt.AlignCenter)
+        title_layout.setSpacing(5)
         
-        self.logo_label = QLabel()
-        logo_path = os.path.join(self.app_path, "assets", "logo.png")
-        if os.path.exists(logo_path):
-            logo_pixmap = QPixmap(logo_path)
-            scaled_logo = logo_pixmap.scaledToWidth(350, Qt.SmoothTransformation)
-            self.logo_label.setPixmap(scaled_logo)
-        else:
-            # Texto como fallback
-            self.logo_label.setText(CONFIG['serverName'])
-            self.logo_label.setStyleSheet("""
-                font-size: 48px;
-                font-weight: bold;
-                color: #ff4444;
-                text-shadow: 3px 3px 6px #000;
-            """)
-        self.logo_label.setAlignment(Qt.AlignCenter)
+        # Nome do servidor - Título principal
+        self.title_label = QLabel(CONFIG['serverName'])
+        self.title_label.setStyleSheet("""
+            font-size: 52px;
+            font-weight: bold;
+            color: #ff3333;
+            font-family: 'Impact', 'Arial Black', sans-serif;
+        """)
+        self.title_label.setAlignment(Qt.AlignCenter)
         
-        # Sombra no logo
-        logo_shadow = QGraphicsDropShadowEffect()
-        logo_shadow.setBlurRadius(30)
-        logo_shadow.setColor(QColor(255, 100, 0, 200))
-        logo_shadow.setOffset(0, 0)
-        self.logo_label.setGraphicsEffect(logo_shadow)
+        # Sombra no título
+        title_shadow = QGraphicsDropShadowEffect()
+        title_shadow.setBlurRadius(20)
+        title_shadow.setColor(QColor(255, 100, 0, 180))
+        title_shadow.setOffset(0, 0)
+        self.title_label.setGraphicsEffect(title_shadow)
         
-        logo_layout.addWidget(self.logo_label)
-        content_layout.addWidget(logo_container)
+        title_layout.addWidget(self.title_label)
+        
+        # Subtítulo
+        subtitle = QLabel("⚔️ Launcher Oficial ⚔️")
+        subtitle.setStyleSheet("""
+            font-size: 14px;
+            color: #ffd700;
+            font-weight: bold;
+        """)
+        subtitle.setAlignment(Qt.AlignCenter)
+        title_layout.addWidget(subtitle)
+        
+        content_layout.addWidget(title_container)
         
         # Espaçador
         content_layout.addStretch()
@@ -552,10 +558,68 @@ class BaiakZikaLauncher(QMainWindow):
         
         content_layout.addWidget(btn_container)
         
+        # ========== REDES SOCIAIS ==========
+        social_container = QWidget()
+        social_layout = QHBoxLayout(social_container)
+        social_layout.setAlignment(Qt.AlignCenter)
+        social_layout.setSpacing(20)
+        
+        # Botão Discord
+        discord_btn = QPushButton()
+        discord_path = os.path.join(self.app_path, "assets", "discord.png")
+        if os.path.exists(discord_path):
+            discord_btn.setIcon(QIcon(discord_path))
+            discord_btn.setIconSize(QSize(32, 32))
+        else:
+            discord_btn.setText("Discord")
+        discord_btn.setFixedSize(50, 50)
+        discord_btn.setCursor(Qt.PointingHandCursor)
+        discord_btn.setToolTip("Entre no nosso Discord!")
+        discord_btn.setStyleSheet("""
+            QPushButton {
+                background-color: rgba(88, 101, 242, 0.8);
+                border: 2px solid #5865F2;
+                border-radius: 25px;
+            }
+            QPushButton:hover {
+                background-color: rgba(88, 101, 242, 1);
+                border: 2px solid #7289DA;
+            }
+        """)
+        discord_btn.clicked.connect(lambda: self.open_link("https://discord.gg/aRR3GtFS"))
+        social_layout.addWidget(discord_btn)
+        
+        # Botão WhatsApp
+        whatsapp_btn = QPushButton()
+        whatsapp_path = os.path.join(self.app_path, "assets", "whatsapp.png")
+        if os.path.exists(whatsapp_path):
+            whatsapp_btn.setIcon(QIcon(whatsapp_path))
+            whatsapp_btn.setIconSize(QSize(32, 32))
+        else:
+            whatsapp_btn.setText("WhatsApp")
+        whatsapp_btn.setFixedSize(50, 50)
+        whatsapp_btn.setCursor(Qt.PointingHandCursor)
+        whatsapp_btn.setToolTip("Entre no nosso grupo do WhatsApp!")
+        whatsapp_btn.setStyleSheet("""
+            QPushButton {
+                background-color: rgba(37, 211, 102, 0.8);
+                border: 2px solid #25D366;
+                border-radius: 25px;
+            }
+            QPushButton:hover {
+                background-color: rgba(37, 211, 102, 1);
+                border: 2px solid #128C7E;
+            }
+        """)
+        whatsapp_btn.clicked.connect(lambda: self.open_link("https://chat.whatsapp.com/LCNjzMRyejH4GtVotwpZvF"))
+        social_layout.addWidget(whatsapp_btn)
+        
+        content_layout.addWidget(social_container)
+        
         # ========== RODAPÉ ==========
         footer = QWidget()
         footer_layout = QHBoxLayout(footer)
-        footer_layout.setContentsMargins(0, 0, 0, 0)
+        footer_layout.setContentsMargins(0, 10, 0, 0)
         
         # Versão
         self.version_label = QLabel(f"v{self.local_config.get('version', '1.0.0')}")
@@ -564,7 +628,7 @@ class BaiakZikaLauncher(QMainWindow):
         
         footer_layout.addStretch()
         
-        # Website/Discord
+        # Website
         website_label = QLabel("🌐 www.baiak-zika.com")
         website_label.setStyleSheet("color: rgba(255, 255, 255, 0.5); font-size: 10px;")
         footer_layout.addWidget(website_label)
@@ -806,6 +870,13 @@ class BaiakZikaLauncher(QMainWindow):
             )
             self.update_btn.setVisible(True)
             self.update_btn.setEnabled(True)
+    
+    def open_link(self, url):
+        """Abre um link no navegador padrão"""
+        try:
+            webbrowser.open(url)
+        except Exception as e:
+            styled_message(self, "❌ Erro", f"Erro ao abrir link:\n\n{str(e)}", "error")
     
     def closeEvent(self, event):
         """Ao fechar a janela"""
