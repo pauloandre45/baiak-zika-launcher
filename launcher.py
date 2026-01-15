@@ -441,47 +441,10 @@ class BaiakZikaLauncher(QMainWindow):
         content.setStyleSheet("background: transparent;")
         content_layout = QVBoxLayout(content)
         content_layout.setSpacing(15)
-        content_layout.setContentsMargins(40, 20, 40, 20)
+        content_layout.setContentsMargins(40, 30, 40, 20)
         
-        # ========== TÍTULO ESTILIZADO ==========
-        title_container = QWidget()
-        title_layout = QVBoxLayout(title_container)
-        title_layout.setAlignment(Qt.AlignCenter)
-        title_layout.setSpacing(5)
-        
-        # Nome do servidor - Título principal
-        self.title_label = QLabel(CONFIG['serverName'])
-        self.title_label.setStyleSheet("""
-            font-size: 52px;
-            font-weight: bold;
-            color: #ff3333;
-            font-family: 'Impact', 'Arial Black', sans-serif;
-        """)
-        self.title_label.setAlignment(Qt.AlignCenter)
-        
-        # Sombra no título
-        title_shadow = QGraphicsDropShadowEffect()
-        title_shadow.setBlurRadius(20)
-        title_shadow.setColor(QColor(255, 100, 0, 180))
-        title_shadow.setOffset(0, 0)
-        self.title_label.setGraphicsEffect(title_shadow)
-        
-        title_layout.addWidget(self.title_label)
-        
-        # Subtítulo
-        subtitle = QLabel("⚔️ Launcher Oficial ⚔️")
-        subtitle.setStyleSheet("""
-            font-size: 14px;
-            color: #ffd700;
-            font-weight: bold;
-        """)
-        subtitle.setAlignment(Qt.AlignCenter)
-        title_layout.addWidget(subtitle)
-        
-        content_layout.addWidget(title_container)
-        
-        # Espaçador
-        content_layout.addStretch()
+        # Espaçador superior (para dar espaço ao logo do background)
+        content_layout.addStretch(2)
         
         # ========== ÁREA DE STATUS ==========
         status_frame = QFrame()
@@ -558,32 +521,42 @@ class BaiakZikaLauncher(QMainWindow):
         
         content_layout.addWidget(btn_container)
         
-        # ========== REDES SOCIAIS ==========
-        social_container = QWidget()
-        social_layout = QHBoxLayout(social_container)
+        # Espaçador para empurrar botões para baixo
+        content_layout.addStretch(1)
+        
+        # ========== RODAPÉ COM REDES SOCIAIS ==========
+        footer = QWidget()
+        footer_layout = QVBoxLayout(footer)
+        footer_layout.setContentsMargins(0, 0, 0, 0)
+        footer_layout.setSpacing(10)
+        
+        # Linha com redes sociais
+        social_row = QWidget()
+        social_layout = QHBoxLayout(social_row)
+        social_layout.setContentsMargins(0, 0, 0, 0)
+        social_layout.setSpacing(15)
         social_layout.setAlignment(Qt.AlignCenter)
-        social_layout.setSpacing(20)
         
         # Botão Discord
         discord_btn = QPushButton()
         discord_path = os.path.join(self.app_path, "assets", "discord.png")
         if os.path.exists(discord_path):
             discord_btn.setIcon(QIcon(discord_path))
-            discord_btn.setIconSize(QSize(32, 32))
+            discord_btn.setIconSize(QSize(28, 28))
         else:
             discord_btn.setText("Discord")
-        discord_btn.setFixedSize(50, 50)
+        discord_btn.setFixedSize(44, 44)
         discord_btn.setCursor(Qt.PointingHandCursor)
         discord_btn.setToolTip("Entre no nosso Discord!")
         discord_btn.setStyleSheet("""
             QPushButton {
-                background-color: rgba(88, 101, 242, 0.8);
-                border: 2px solid #5865F2;
-                border-radius: 25px;
+                background-color: rgba(88, 101, 242, 0.9);
+                border: 2px solid #7289DA;
+                border-radius: 22px;
             }
             QPushButton:hover {
-                background-color: rgba(88, 101, 242, 1);
-                border: 2px solid #7289DA;
+                background-color: #5865F2;
+                border: 2px solid #99AAB5;
             }
         """)
         discord_btn.clicked.connect(lambda: self.open_link("https://discord.gg/aRR3GtFS"))
@@ -594,44 +567,46 @@ class BaiakZikaLauncher(QMainWindow):
         whatsapp_path = os.path.join(self.app_path, "assets", "whatsapp.png")
         if os.path.exists(whatsapp_path):
             whatsapp_btn.setIcon(QIcon(whatsapp_path))
-            whatsapp_btn.setIconSize(QSize(32, 32))
+            whatsapp_btn.setIconSize(QSize(28, 28))
         else:
             whatsapp_btn.setText("WhatsApp")
-        whatsapp_btn.setFixedSize(50, 50)
+        whatsapp_btn.setFixedSize(44, 44)
         whatsapp_btn.setCursor(Qt.PointingHandCursor)
         whatsapp_btn.setToolTip("Entre no nosso grupo do WhatsApp!")
         whatsapp_btn.setStyleSheet("""
             QPushButton {
-                background-color: rgba(37, 211, 102, 0.8);
+                background-color: rgba(37, 211, 102, 0.9);
                 border: 2px solid #25D366;
-                border-radius: 25px;
+                border-radius: 22px;
             }
             QPushButton:hover {
-                background-color: rgba(37, 211, 102, 1);
+                background-color: #25D366;
                 border: 2px solid #128C7E;
             }
         """)
         whatsapp_btn.clicked.connect(lambda: self.open_link("https://chat.whatsapp.com/LCNjzMRyejH4GtVotwpZvF"))
         social_layout.addWidget(whatsapp_btn)
         
-        content_layout.addWidget(social_container)
+        footer_layout.addWidget(social_row)
         
-        # ========== RODAPÉ ==========
-        footer = QWidget()
-        footer_layout = QHBoxLayout(footer)
-        footer_layout.setContentsMargins(0, 10, 0, 0)
+        # Linha inferior com versão e website
+        info_row = QWidget()
+        info_layout = QHBoxLayout(info_row)
+        info_layout.setContentsMargins(0, 5, 0, 0)
         
         # Versão
         self.version_label = QLabel(f"v{self.local_config.get('version', '1.0.0')}")
-        self.version_label.setStyleSheet("color: rgba(255, 215, 0, 0.6); font-size: 11px;")
-        footer_layout.addWidget(self.version_label)
+        self.version_label.setStyleSheet("color: rgba(255, 215, 0, 0.7); font-size: 11px;")
+        info_layout.addWidget(self.version_label)
         
-        footer_layout.addStretch()
+        info_layout.addStretch()
         
         # Website
         website_label = QLabel("🌐 www.baiak-zika.com")
-        website_label.setStyleSheet("color: rgba(255, 255, 255, 0.5); font-size: 10px;")
-        footer_layout.addWidget(website_label)
+        website_label.setStyleSheet("color: rgba(255, 255, 255, 0.6); font-size: 10px;")
+        info_layout.addWidget(website_label)
+        
+        footer_layout.addWidget(info_row)
         
         content_layout.addWidget(footer)
         
