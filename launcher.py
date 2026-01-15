@@ -444,65 +444,15 @@ class BaiakZikaLauncher(QMainWindow):
         content_layout.setContentsMargins(40, 20, 40, 15)
         
         # ========== ÁREA SUPERIOR - Espaço para o logo do background ==========
-        content_layout.addStretch(3)
+        content_layout.addStretch(4)
         
-        # ========== ÁREA CENTRAL - Status e Botões ==========
+        # ========== ÁREA CENTRAL - Botões e Status ==========
         central_area = QWidget()
         central_layout = QVBoxLayout(central_area)
-        central_layout.setSpacing(20)
+        central_layout.setSpacing(15)
         central_layout.setContentsMargins(0, 0, 0, 0)
         
-        # Status Frame (mais compacto e elegante)
-        status_frame = QFrame()
-        status_frame.setStyleSheet("""
-            QFrame {
-                background-color: rgba(0, 0, 0, 0.75);
-                border: 2px solid rgba(255, 100, 0, 0.5);
-                border-radius: 8px;
-            }
-        """)
-        status_layout = QVBoxLayout(status_frame)
-        status_layout.setContentsMargins(25, 12, 25, 12)
-        status_layout.setSpacing(8)
-        
-        # Status label
-        self.status_label = QLabel("Verificando...")
-        self.status_label.setStyleSheet("""
-            color: #ffd700;
-            font-size: 13px;
-            font-weight: bold;
-            background: transparent;
-            border: none;
-        """)
-        self.status_label.setAlignment(Qt.AlignCenter)
-        status_layout.addWidget(self.status_label)
-        
-        # Barra de progresso
-        self.progress_bar = QProgressBar()
-        self.progress_bar.setFixedHeight(18)
-        self.progress_bar.setVisible(False)
-        self.progress_bar.setTextVisible(True)
-        self.progress_bar.setStyleSheet("""
-            QProgressBar {
-                border: 1px solid #ff6600;
-                border-radius: 8px;
-                background-color: rgba(0, 0, 0, 0.6);
-                color: #fff;
-                text-align: center;
-                font-weight: bold;
-                font-size: 11px;
-            }
-            QProgressBar::chunk {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #ff4400, stop:0.5 #ff6600, stop:1 #ffaa00);
-                border-radius: 7px;
-            }
-        """)
-        status_layout.addWidget(self.progress_bar)
-        
-        central_layout.addWidget(status_frame)
-        
-        # ========== BOTÕES PRINCIPAIS ==========
+        # ========== BOTÕES PRINCIPAIS (PRIMEIRO) ==========
         btn_container = QWidget()
         btn_layout = QHBoxLayout(btn_container)
         btn_layout.setSpacing(15)
@@ -531,10 +481,60 @@ class BaiakZikaLauncher(QMainWindow):
         
         central_layout.addWidget(btn_container)
         
+        # ========== STATUS (ABAIXO DOS BOTÕES) ==========
+        status_frame = QFrame()
+        status_frame.setStyleSheet("""
+            QFrame {
+                background-color: rgba(0, 0, 0, 0.7);
+                border: 1px solid rgba(255, 100, 0, 0.4);
+                border-radius: 6px;
+            }
+        """)
+        status_layout = QVBoxLayout(status_frame)
+        status_layout.setContentsMargins(20, 8, 20, 8)
+        status_layout.setSpacing(6)
+        
+        # Status label
+        self.status_label = QLabel("Verificando...")
+        self.status_label.setStyleSheet("""
+            color: #ffd700;
+            font-size: 12px;
+            font-weight: bold;
+            background: transparent;
+            border: none;
+        """)
+        self.status_label.setAlignment(Qt.AlignCenter)
+        status_layout.addWidget(self.status_label)
+        
+        # Barra de progresso
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setFixedHeight(16)
+        self.progress_bar.setVisible(False)
+        self.progress_bar.setTextVisible(True)
+        self.progress_bar.setStyleSheet("""
+            QProgressBar {
+                border: 1px solid #ff6600;
+                border-radius: 7px;
+                background-color: rgba(0, 0, 0, 0.6);
+                color: #fff;
+                text-align: center;
+                font-weight: bold;
+                font-size: 10px;
+            }
+            QProgressBar::chunk {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #ff4400, stop:0.5 #ff6600, stop:1 #ffaa00);
+                border-radius: 6px;
+            }
+        """)
+        status_layout.addWidget(self.progress_bar)
+        
+        central_layout.addWidget(status_frame)
+        
         content_layout.addWidget(central_area)
         
         # ========== ÁREA INFERIOR - Espaço + Footer ==========
-        content_layout.addStretch(2)
+        content_layout.addStretch(1)
         
         # ========== FOOTER PROFISSIONAL ==========
         footer = QWidget()
