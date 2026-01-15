@@ -596,12 +596,11 @@ class BaiakZikaLauncher(QMainWindow):
         discord_btn.setStyleSheet("""
             QPushButton {
                 background-color: #5865F2;
-                border: 2px solid #5865F2;
+                border: none;
                 border-radius: 20px;
             }
             QPushButton:hover {
                 background-color: #4752C4;
-                border: 2px solid #7289DA;
             }
             QPushButton:pressed {
                 background-color: #3C45A5;
@@ -625,12 +624,11 @@ class BaiakZikaLauncher(QMainWindow):
         whatsapp_btn.setStyleSheet("""
             QPushButton {
                 background-color: #25D366;
-                border: 2px solid #25D366;
+                border: none;
                 border-radius: 20px;
             }
             QPushButton:hover {
                 background-color: #1DA851;
-                border: 2px solid #128C7E;
             }
             QPushButton:pressed {
                 background-color: #128C7E;
