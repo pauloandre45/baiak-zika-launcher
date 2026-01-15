@@ -2,7 +2,7 @@
 ; Criado com Inno Setup
 
 #define MyAppName "Baiak-Zika"
-#define MyAppVersion "1.0.8"
+#define MyAppVersion "1.0.0"
 #define MyAppPublisher "Baiak-Zika"
 #define MyAppURL "https://www.baiak-zika.com"
 #define MyAppExeName "Baiak-Zika.exe"
@@ -28,7 +28,7 @@ PrivilegesRequired=lowest
 AllowNoIcons=yes
 OutputDir=Output
 OutputBaseFilename=Baiak-Zika-Setup
-SetupIconFile=..\assets\icon.ico
+SetupIconFile=..\icon.ico
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
@@ -38,7 +38,7 @@ WizardImageFile=wizard_image.bmp
 WizardSmallImageFile=wizard_small.bmp
 
 ; Desinstalador
-UninstallDisplayIcon={app}\{#MyAppExeName}
+UninstallDisplayIcon={app}\icon.ico
 UninstallDisplayName={#MyAppName} Launcher
 
 [Languages]
@@ -53,13 +53,13 @@ Name: "desktopicon"; Description: "Criar atalho na Área de Trabalho"; GroupDesc
 Source: "..\dist\Baiak-Zika.exe"; DestDir: "{app}"; Flags: ignoreversion
 
 ; Ícone
-Source: "..\dist\icon.ico"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\icon.ico"; DestDir: "{app}"; Flags: ignoreversion
 
 ; Pasta assets
 Source: "..\dist\assets\*"; DestDir: "{app}\assets"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-; Atalho na Área de Trabalho
+; Atalho na Área de Trabalho com ícone do Tibia
 Name: "{userdesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\icon.ico"; Tasks: desktopicon
 
 ; Atalho no Menu Iniciar
