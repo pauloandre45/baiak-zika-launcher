@@ -737,8 +737,7 @@ class BaiakZikaLauncher(QMainWindow):
                 self.update_btn.setFixedSize(200, 50)
                 self.update_btn.setVisible(True)
                 self.update_btn.setEnabled(True)
-                self.play_btn.setVisible(True)
-                self.play_btn.setEnabled(True)
+                self.play_btn.setVisible(False)
                 self.repair_btn.setVisible(True)
                 self.repair_btn.setEnabled(True)
                 self.update_type = "assets"
