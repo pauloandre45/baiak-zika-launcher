@@ -456,29 +456,30 @@ class BaiakZikaLauncher(QMainWindow):
         central_layout.setSpacing(15)
         central_layout.setContentsMargins(0, 0, 0, 0)
         
-        # ========== BOTÕES PRINCIPAIS (PRIMEIRO) ==========
+        # ========== BOTÕES PRINCIPAIS ==========
         btn_container = QWidget()
         btn_layout = QHBoxLayout(btn_container)
-        btn_layout.setSpacing(15)
+        btn_layout.setSpacing(20)
         btn_layout.setAlignment(Qt.AlignCenter)
         
-        # Botão JOGAR (principal - maior destaque)
+        # Botão JOGAR (principal)
         self.play_btn = StyledButton("⚔️  JOGAR", "primary")
         self.play_btn.setFixedSize(160, 50)
         self.play_btn.clicked.connect(self.start_game)
         self.play_btn.setEnabled(False)
+        self.play_btn.setVisible(False)
         btn_layout.addWidget(self.play_btn)
         
-        # Botão ATUALIZAR
-        self.update_btn = StyledButton("⬇️  ATUALIZAR", "secondary")
-        self.update_btn.setFixedSize(140, 45)
+        # Botão BAIXAR/ATUALIZAR (muda texto conforme situação)
+        self.update_btn = StyledButton("⬇️  BAIXAR CLIENTE", "secondary")
+        self.update_btn.setFixedSize(200, 50)
         self.update_btn.clicked.connect(self.start_update)
         self.update_btn.setVisible(False)
         btn_layout.addWidget(self.update_btn)
         
         # Botão REPARAR
         self.repair_btn = StyledButton("🔧 REPARAR", "repair")
-        self.repair_btn.setFixedSize(110, 40)
+        self.repair_btn.setFixedSize(130, 45)
         self.repair_btn.clicked.connect(self.start_repair)
         self.repair_btn.setVisible(False)
         btn_layout.addWidget(self.repair_btn)
@@ -568,37 +569,42 @@ class BaiakZikaLauncher(QMainWindow):
         
         footer_layout.addStretch()
         
-        # Redes Sociais (centro-direita)
+        # Redes Sociais (centro)
         social_container = QWidget()
         social_container.setStyleSheet("background: transparent; border: none;")
         social_layout = QHBoxLayout(social_container)
         social_layout.setContentsMargins(0, 0, 0, 0)
-        social_layout.setSpacing(6)
+        social_layout.setSpacing(10)
         
         # Label "Comunidade"
         community_label = QLabel("Comunidade:")
-        community_label.setStyleSheet("color: rgba(255, 255, 255, 0.6); font-size: 10px; background: transparent; border: none;")
+        community_label.setStyleSheet("color: rgba(255, 255, 255, 0.7); font-size: 11px; background: transparent; border: none;")
         social_layout.addWidget(community_label)
         
         # Botão Discord
         discord_btn = QPushButton()
         discord_path = os.path.join(self.app_path, "assets", "discord.png")
         if os.path.exists(discord_path):
-            discord_btn.setIcon(QIcon(discord_path))
-            discord_btn.setIconSize(QSize(22, 22))
+            pixmap = QPixmap(discord_path).scaled(24, 24, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            discord_btn.setIcon(QIcon(pixmap))
+            discord_btn.setIconSize(QSize(24, 24))
         else:
             discord_btn.setText("DC")
-        discord_btn.setFixedSize(36, 36)
+        discord_btn.setFixedSize(40, 40)
         discord_btn.setCursor(Qt.PointingHandCursor)
-        discord_btn.setToolTip("Discord")
+        discord_btn.setToolTip("Entrar no Discord")
         discord_btn.setStyleSheet("""
             QPushButton {
                 background-color: #5865F2;
-                border: none;
-                border-radius: 18px;
+                border: 2px solid #5865F2;
+                border-radius: 20px;
             }
             QPushButton:hover {
-                background-color: #7289DA;
+                background-color: #4752C4;
+                border: 2px solid #7289DA;
+            }
+            QPushButton:pressed {
+                background-color: #3C45A5;
             }
         """)
         discord_btn.clicked.connect(lambda: self.open_link("https://discord.gg/aRR3GtFS"))
@@ -608,20 +614,25 @@ class BaiakZikaLauncher(QMainWindow):
         whatsapp_btn = QPushButton()
         whatsapp_path = os.path.join(self.app_path, "assets", "whatsapp.png")
         if os.path.exists(whatsapp_path):
-            whatsapp_btn.setIcon(QIcon(whatsapp_path))
-            whatsapp_btn.setIconSize(QSize(22, 22))
+            pixmap = QPixmap(whatsapp_path).scaled(24, 24, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            whatsapp_btn.setIcon(QIcon(pixmap))
+            whatsapp_btn.setIconSize(QSize(24, 24))
         else:
             whatsapp_btn.setText("ZAP")
-        whatsapp_btn.setFixedSize(36, 36)
+        whatsapp_btn.setFixedSize(40, 40)
         whatsapp_btn.setCursor(Qt.PointingHandCursor)
-        whatsapp_btn.setToolTip("WhatsApp")
+        whatsapp_btn.setToolTip("Entrar no WhatsApp")
         whatsapp_btn.setStyleSheet("""
             QPushButton {
                 background-color: #25D366;
-                border: none;
-                border-radius: 18px;
+                border: 2px solid #25D366;
+                border-radius: 20px;
             }
             QPushButton:hover {
+                background-color: #1DA851;
+                border: 2px solid #128C7E;
+            }
+            QPushButton:pressed {
                 background-color: #128C7E;
             }
         """)
@@ -687,15 +698,19 @@ class BaiakZikaLauncher(QMainWindow):
             client_exists = os.path.exists(client_path)
             
             if not client_exists:
-                # Não tem client - só mostra ATUALIZAR
-                self.status_label.setText("Cliente não instalado - Clique em ATUALIZAR")
+                # Não tem client - mostra BAIXAR CLIENTE
+                self.status_label.setText("Cliente não instalado - Clique em BAIXAR")
+                self.update_btn.setText("⬇️  BAIXAR CLIENTE")
+                self.update_btn.setFixedSize(200, 50)
                 self.update_btn.setVisible(True)
                 self.update_btn.setEnabled(True)
                 self.play_btn.setVisible(False)
                 self.repair_btn.setVisible(False)
             elif self.compare_versions(remote_version, local_version) > 0:
                 # Tem client mas versão antiga - mostra JOGAR e ATUALIZAR
-                self.status_label.setText(f"Nova versão disponível: {remote_version}")
+                self.status_label.setText(f"Nova versão disponível: v{remote_version}")
+                self.update_btn.setText("⬇️  ATUALIZAR")
+                self.update_btn.setFixedSize(160, 50)
                 self.update_btn.setVisible(True)
                 self.update_btn.setEnabled(True)
                 self.play_btn.setVisible(True)
@@ -704,7 +719,7 @@ class BaiakZikaLauncher(QMainWindow):
                 self.repair_btn.setEnabled(True)
             else:
                 # Client atualizado - mostra JOGAR e REPARAR
-                self.status_label.setText("Cliente atualizado!")
+                self.status_label.setText("✅ Cliente atualizado!")
                 self.play_btn.setVisible(True)
                 self.play_btn.setEnabled(True)
                 self.update_btn.setVisible(False)
@@ -718,12 +733,17 @@ class BaiakZikaLauncher(QMainWindow):
             if os.path.exists(client_path):
                 self.play_btn.setVisible(True)
                 self.play_btn.setEnabled(True)
+                self.update_btn.setText("⬇️  ATUALIZAR")
                 self.update_btn.setVisible(True)
                 self.update_btn.setEnabled(True)
+                self.repair_btn.setVisible(True)
+                self.repair_btn.setEnabled(True)
             else:
                 self.play_btn.setVisible(False)
+                self.update_btn.setText("⬇️  BAIXAR CLIENTE")
                 self.update_btn.setVisible(True)
                 self.update_btn.setEnabled(True)
+                self.repair_btn.setVisible(False)
     
     def compare_versions(self, v1, v2):
         """Compara versões (1.0.0 vs 1.0.1)"""
