@@ -23,6 +23,16 @@ jobs:
           python -m pip install --upgrade pip
           pip install pyqt5 pyinstaller pillow
       
+      - name: Convert PNG to ICO
+        run: |
+          python -c "
+          from PIL import Image
+          img = Image.open('assets/icon.png')
+          img.save('assets/icon.ico', format='ICO', sizes=[(256,256), (128,128), (64,64), (48,48), (32,32), (16,16)])
+          print('Icon converted successfully!')
+          "
+        shell: cmd
+      
       - name: Build executable
         run: |
           pyinstaller --onefile --windowed --icon=assets/icon.ico --name=Baiak-Zika --add-data "assets;assets" launcher.py
