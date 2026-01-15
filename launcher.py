@@ -204,7 +204,11 @@ class BackgroundWidget(QWidget):
     
     def load_background(self):
         """Carrega imagem de background"""
-        bg_path = os.path.join(get_app_path(), "assets", "background.png")
+        # Tenta JPG primeiro (mais leve), depois PNG
+        bg_path = os.path.join(get_app_path(), "assets", "background.jpg")
+        if not os.path.exists(bg_path):
+            bg_path = os.path.join(get_app_path(), "assets", "background.png")
+        
         if os.path.exists(bg_path):
             self.background_pixmap = QPixmap(bg_path)
         else:
@@ -533,20 +537,17 @@ class BaiakZikaLauncher(QMainWindow):
         
         content_layout.addWidget(central_area)
         
-        # ========== ÁREA INFERIOR - Espaço + Footer ==========
-        content_layout.addStretch(1)
-        
-        # ========== FOOTER PROFISSIONAL ==========
+        # ========== FOOTER PROFISSIONAL (SEM ESPAÇO) ==========
         footer = QWidget()
-        footer.setFixedHeight(70)
+        footer.setFixedHeight(65)
         footer.setStyleSheet("""
             QWidget {
-                background-color: rgba(0, 0, 0, 0.5);
-                border-top: 1px solid rgba(255, 100, 0, 0.3);
+                background-color: rgba(0, 0, 0, 0.6);
+                border-top: 1px solid rgba(255, 100, 0, 0.4);
             }
         """)
         footer_layout = QHBoxLayout(footer)
-        footer_layout.setContentsMargins(20, 10, 20, 10)
+        footer_layout.setContentsMargins(20, 8, 20, 8)
         
         # Versão (esquerda)
         version_container = QWidget()
@@ -572,7 +573,7 @@ class BaiakZikaLauncher(QMainWindow):
         social_container.setStyleSheet("background: transparent; border: none;")
         social_layout = QHBoxLayout(social_container)
         social_layout.setContentsMargins(0, 0, 0, 0)
-        social_layout.setSpacing(12)
+        social_layout.setSpacing(6)
         
         # Label "Comunidade"
         community_label = QLabel("Comunidade:")
@@ -584,21 +585,20 @@ class BaiakZikaLauncher(QMainWindow):
         discord_path = os.path.join(self.app_path, "assets", "discord.png")
         if os.path.exists(discord_path):
             discord_btn.setIcon(QIcon(discord_path))
-            discord_btn.setIconSize(QSize(24, 24))
+            discord_btn.setIconSize(QSize(22, 22))
         else:
             discord_btn.setText("DC")
-        discord_btn.setFixedSize(40, 40)
+        discord_btn.setFixedSize(36, 36)
         discord_btn.setCursor(Qt.PointingHandCursor)
         discord_btn.setToolTip("Discord")
         discord_btn.setStyleSheet("""
             QPushButton {
-                background-color: rgba(88, 101, 242, 0.85);
-                border: 2px solid #5865F2;
-                border-radius: 20px;
+                background-color: #5865F2;
+                border: none;
+                border-radius: 18px;
             }
             QPushButton:hover {
-                background-color: #5865F2;
-                border: 2px solid #7289DA;
+                background-color: #7289DA;
             }
         """)
         discord_btn.clicked.connect(lambda: self.open_link("https://discord.gg/aRR3GtFS"))
@@ -609,21 +609,20 @@ class BaiakZikaLauncher(QMainWindow):
         whatsapp_path = os.path.join(self.app_path, "assets", "whatsapp.png")
         if os.path.exists(whatsapp_path):
             whatsapp_btn.setIcon(QIcon(whatsapp_path))
-            whatsapp_btn.setIconSize(QSize(24, 24))
+            whatsapp_btn.setIconSize(QSize(22, 22))
         else:
             whatsapp_btn.setText("ZAP")
-        whatsapp_btn.setFixedSize(40, 40)
+        whatsapp_btn.setFixedSize(36, 36)
         whatsapp_btn.setCursor(Qt.PointingHandCursor)
         whatsapp_btn.setToolTip("WhatsApp")
         whatsapp_btn.setStyleSheet("""
             QPushButton {
-                background-color: rgba(37, 211, 102, 0.85);
-                border: 2px solid #25D366;
-                border-radius: 20px;
+                background-color: #25D366;
+                border: none;
+                border-radius: 18px;
             }
             QPushButton:hover {
-                background-color: #25D366;
-                border: 2px solid #128C7E;
+                background-color: #128C7E;
             }
         """)
         whatsapp_btn.clicked.connect(lambda: self.open_link("https://chat.whatsapp.com/LCNjzMRyejH4GtVotwpZvF"))
