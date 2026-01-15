@@ -43,11 +43,12 @@ except ImportError:
 CONFIG = {
     "serverName": "Baiak-Zika",
     "clientExecutable": "Baiak-zika-15/bin/client.exe",  # Caminho do client dentro do ZIP extraído
+    "clientFolder": "Baiak-zika-15",  # Pasta do client
     "localConfigFile": "local_config.json",
     "remoteConfigUrl": "https://gist.githubusercontent.com/pauloandre45/e59926d5c0c8cbc9d225e06db7e446ad/raw/SERVIDOR_launcher_config.json",
     "clientDownloadUrl": "https://github.com/pauloandre45/baiak-zika-launcher/releases/download/v1.0.0/Baiak-zika-15.zip",
     "currentVersion": "1.0.0",
-    "backupFolders": ["conf", "characterdata"],
+    "backupFolders": ["conf", "characterdata", "minimap"],  # Pastas que NÃO são sobrescritas
 }
 
 # Estilos globais para MessageBox
@@ -688,12 +689,24 @@ class BaiakZikaLauncher(QMainWindow):
             data = response.read().decode('utf-8')
             self.remote_config = json.loads(data)
             
-            remote_version = self.remote_config.get("clientVersion", "0.0.0")
-            local_version = self.local_config.get("version", "0.0.0")
+            # Versões remotas
+            remote_client_version = self.remote_config.get("clientVersion", "0.0.0")
+            remote_assets_version = self.remote_config.get("assetsVersion", "0.0.0")
+            
+            # Versões locais
+            local_client_version = self.local_config.get("version", "0.0.0")
+            local_assets_version = self.local_config.get("assetsVersion", "0.0.0")
             
             # Verificar se o client existe
             client_path = os.path.join(self.app_path, CONFIG["clientExecutable"])
             client_exists = os.path.exists(client_path)
+            
+            # Flags de atualização
+            needs_client_update = self.compare_versions(remote_client_version, local_client_version) > 0
+            needs_assets_update = self.compare_versions(remote_assets_version, local_assets_version) > 0
+            
+            # Guardar tipo de atualização necessária
+            self.update_type = None
             
             if not client_exists:
                 # Não tem client - mostra BAIXAR CLIENTE
@@ -704,9 +717,10 @@ class BaiakZikaLauncher(QMainWindow):
                 self.update_btn.setEnabled(True)
                 self.play_btn.setVisible(False)
                 self.repair_btn.setVisible(False)
-            elif self.compare_versions(remote_version, local_version) > 0:
-                # Tem client mas versão antiga - mostra JOGAR e ATUALIZAR
-                self.status_label.setText(f"Nova versão disponível: v{remote_version}")
+                self.update_type = "full"
+            elif needs_client_update:
+                # Cliente precisa atualização completa
+                self.status_label.setText(f"Nova versão do cliente: v{remote_client_version}")
                 self.update_btn.setText("⬇️  ATUALIZAR")
                 self.update_btn.setFixedSize(160, 50)
                 self.update_btn.setVisible(True)
@@ -715,14 +729,28 @@ class BaiakZikaLauncher(QMainWindow):
                 self.play_btn.setEnabled(True)
                 self.repair_btn.setVisible(True)
                 self.repair_btn.setEnabled(True)
+                self.update_type = "full"
+            elif needs_assets_update:
+                # Só assets precisam atualização (download menor!)
+                self.status_label.setText(f"📦 Atualização de assets: v{remote_assets_version}")
+                self.update_btn.setText("⬇️  ATUALIZAR ASSETS")
+                self.update_btn.setFixedSize(200, 50)
+                self.update_btn.setVisible(True)
+                self.update_btn.setEnabled(True)
+                self.play_btn.setVisible(True)
+                self.play_btn.setEnabled(True)
+                self.repair_btn.setVisible(True)
+                self.repair_btn.setEnabled(True)
+                self.update_type = "assets"
             else:
-                # Client atualizado - mostra JOGAR e REPARAR
+                # Tudo atualizado - mostra JOGAR e REPARAR
                 self.status_label.setText("✅ Cliente atualizado!")
                 self.play_btn.setVisible(True)
                 self.play_btn.setEnabled(True)
                 self.update_btn.setVisible(False)
                 self.repair_btn.setVisible(True)
                 self.repair_btn.setEnabled(True)
+                self.update_type = None
                 
         except Exception as e:
             self.status_label.setText(f"Erro ao verificar: {str(e)[:50]}")
@@ -736,12 +764,14 @@ class BaiakZikaLauncher(QMainWindow):
                 self.update_btn.setEnabled(True)
                 self.repair_btn.setVisible(True)
                 self.repair_btn.setEnabled(True)
+                self.update_type = "full"
             else:
                 self.play_btn.setVisible(False)
                 self.update_btn.setText("⬇️  BAIXAR CLIENTE")
                 self.update_btn.setVisible(True)
                 self.update_btn.setEnabled(True)
                 self.repair_btn.setVisible(False)
+                self.update_type = "full"
     
     def compare_versions(self, v1, v2):
         """Compara versões (1.0.0 vs 1.0.1)"""
@@ -761,16 +791,30 @@ class BaiakZikaLauncher(QMainWindow):
             return 0
     
     def start_update(self):
-        """Inicia download da atualização"""
+        """Inicia download da atualização (completa ou só assets)"""
         self.update_btn.setEnabled(False)
         self.play_btn.setEnabled(False)
         self.progress_bar.setVisible(True)
         self.progress_bar.setValue(0)
         
-        # URL de download
-        download_url = self.remote_config.get("newClientUrl") or \
-                       self.remote_config.get("clientDownloadUrl") or \
-                       CONFIG["clientDownloadUrl"]
+        # Verificar tipo de atualização
+        if self.update_type == "assets":
+            # Atualização só dos assets (menor!)
+            download_url = self.remote_config.get("assetsDownloadUrl", "")
+            if not download_url:
+                styled_message(self, "❌ Erro", "URL de assets não configurada no servidor.", "error")
+                self.update_btn.setEnabled(True)
+                self.progress_bar.setVisible(False)
+                return
+            self.is_assets_update = True
+            self.status_label.setText("Baixando assets...")
+        else:
+            # Atualização completa do client
+            download_url = self.remote_config.get("newClientUrl") or \
+                           self.remote_config.get("clientDownloadUrl") or \
+                           CONFIG["clientDownloadUrl"]
+            self.is_assets_update = False
+            self.status_label.setText("Baixando cliente...")
         
         # Caminho para salvar
         zip_path = os.path.join(self.app_path, "update.zip")
@@ -815,48 +859,88 @@ class BaiakZikaLauncher(QMainWindow):
         """Extrai arquivos do update"""
         try:
             zip_path = os.path.join(self.app_path, "update.zip")
+            client_folder = os.path.join(self.app_path, CONFIG.get("clientFolder", "Baiak-zika-15"))
             
-            # Backup das pastas importantes
-            self.status_label.setText("Fazendo backup...")
-            for folder in CONFIG["backupFolders"]:
-                folder_path = os.path.join(self.app_path, folder)
-                backup_path = os.path.join(self.app_path, f"{folder}_backup")
-                if os.path.exists(folder_path):
-                    if os.path.exists(backup_path):
-                        shutil.rmtree(backup_path)
-                    shutil.copytree(folder_path, backup_path)
-            
-            # Extrai o ZIP
-            self.status_label.setText("Extraindo arquivos...")
-            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-                zip_ref.extractall(self.app_path)
-            
-            # Restaura backups
-            self.status_label.setText("Restaurando configurações...")
-            for folder in CONFIG["backupFolders"]:
-                backup_path = os.path.join(self.app_path, f"{folder}_backup")
-                folder_path = os.path.join(self.app_path, folder)
-                if os.path.exists(backup_path):
+            if getattr(self, 'is_assets_update', False):
+                # ========== ATUALIZAÇÃO SÓ DOS ASSETS ==========
+                self.status_label.setText("Extraindo assets...")
+                
+                # Extrai direto - assets não têm configurações do player
+                with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                    # Verificar estrutura do ZIP
+                    first_entry = zip_ref.namelist()[0] if zip_ref.namelist() else ""
+                    
+                    # Se o ZIP contém pasta assets/ na raiz
+                    if first_entry.startswith("assets/") or first_entry == "assets":
+                        # Extrai para a pasta do client
+                        zip_ref.extractall(client_folder)
+                    else:
+                        # ZIP contém só os arquivos - extrai para assets/
+                        assets_path = os.path.join(client_folder, "assets")
+                        zip_ref.extractall(assets_path)
+                
+                # Remove o ZIP
+                os.remove(zip_path)
+                
+                # Atualiza versão dos assets local
+                if self.remote_config:
+                    self.local_config["assetsVersion"] = self.remote_config.get("assetsVersion", "1.0.0")
+                    self.save_local_config()
+                
+                self.status_label.setText("✅ Assets atualizados!")
+                self.progress_bar.setVisible(False)
+                self.play_btn.setVisible(True)
+                self.play_btn.setEnabled(True)
+                self.update_btn.setVisible(False)
+                
+                styled_message(self, "✅ Sucesso", "Assets atualizados com sucesso!\n\nNenhuma configuração foi alterada.", "info")
+                
+            else:
+                # ========== ATUALIZAÇÃO COMPLETA DO CLIENT ==========
+                # Backup das pastas importantes (conf, characterdata, minimap)
+                self.status_label.setText("Fazendo backup...")
+                backup_list = []
+                for folder in CONFIG["backupFolders"]:
+                    folder_path = os.path.join(client_folder, folder)
+                    backup_path = os.path.join(self.app_path, f"{folder}_backup")
                     if os.path.exists(folder_path):
-                        shutil.rmtree(folder_path)
-                    shutil.move(backup_path, folder_path)
-            
-            # Remove o ZIP
-            os.remove(zip_path)
-            
-            # Atualiza versão local
-            if self.remote_config:
-                self.local_config["version"] = self.remote_config.get("clientVersion", "1.0.0")
-                self.save_local_config()
-                self.version_label.setText(f"Versão: {self.local_config['version']}")
-            
-            self.status_label.setText("✓ Atualização concluída!")
-            self.progress_bar.setVisible(False)
-            self.play_btn.setVisible(True)  # Mostrar botão JOGAR
-            self.play_btn.setEnabled(True)
-            self.update_btn.setVisible(False)
-            
-            styled_message(self, "✅ Sucesso", "Cliente atualizado com sucesso!\n\nClique em JOGAR para iniciar!", "info")
+                        if os.path.exists(backup_path):
+                            shutil.rmtree(backup_path)
+                        shutil.copytree(folder_path, backup_path)
+                        backup_list.append(folder)
+                
+                # Extrai o ZIP
+                self.status_label.setText("Extraindo arquivos...")
+                with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                    zip_ref.extractall(self.app_path)
+                
+                # Restaura backups
+                self.status_label.setText("Restaurando configurações...")
+                for folder in backup_list:
+                    backup_path = os.path.join(self.app_path, f"{folder}_backup")
+                    folder_path = os.path.join(client_folder, folder)
+                    if os.path.exists(backup_path):
+                        if os.path.exists(folder_path):
+                            shutil.rmtree(folder_path)
+                        shutil.move(backup_path, folder_path)
+                
+                # Remove o ZIP
+                os.remove(zip_path)
+                
+                # Atualiza versões locais
+                if self.remote_config:
+                    self.local_config["version"] = self.remote_config.get("clientVersion", "1.0.0")
+                    self.local_config["assetsVersion"] = self.remote_config.get("assetsVersion", "1.0.0")
+                    self.save_local_config()
+                    self.version_label.setText(f"Versão {self.local_config['version']}")
+                
+                self.status_label.setText("✅ Atualização concluída!")
+                self.progress_bar.setVisible(False)
+                self.play_btn.setVisible(True)
+                self.play_btn.setEnabled(True)
+                self.update_btn.setVisible(False)
+                
+                styled_message(self, "✅ Sucesso", "Cliente atualizado com sucesso!\n\nSuas configurações foram preservadas.", "info")
             
         except Exception as e:
             self.status_label.setText(f"Erro na extração: {str(e)}")
