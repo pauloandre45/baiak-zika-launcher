@@ -881,12 +881,9 @@ class BaiakZikaLauncher(QMainWindow):
                 # Remove o ZIP
                 os.remove(zip_path)
                 
-                # Atualiza versão dos assets local
+                # Atualiza versão dos assets local com a versão CORRETA do servidor
                 if self.remote_config:
-                    # Assets do ZIP são versão base - launcher vai verificar e baixar se necessário
-                    self.local_config["assetsVersion"] = "1.0.0"  # Versão base do ZIP
-                    # Força verificação de assets após instalar cliente
-                    QTimer.singleShot(1000, self.check_for_updates)
+                    self.local_config["assetsVersion"] = self.remote_config.get("assetsVersion", "1.0.0")
                     self.save_local_config()
                 
                 self.status_label.setText("✅ Assets atualizados!")
@@ -932,10 +929,8 @@ class BaiakZikaLauncher(QMainWindow):
                 # Atualiza versões locais
                 if self.remote_config:
                     self.local_config["version"] = self.remote_config.get("clientVersion", "1.0.0")
-                    # Assets do ZIP são versão base - launcher vai verificar e baixar se necessário
-                    self.local_config["assetsVersion"] = "1.0.0"  # Versão base do ZIP
-                    # Força verificação de assets após instalar cliente
-                    QTimer.singleShot(1000, self.check_for_updates)
+                    # Assets do ZIP são versão 1.0.0 (base) - verificação automática logo abaixo
+                    self.local_config["assetsVersion"] = "1.0.0"
                     self.save_local_config()
                     self.version_label.setText(f"Versão {self.local_config['version']}")
                 
