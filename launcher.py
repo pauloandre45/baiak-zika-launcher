@@ -883,7 +883,10 @@ class BaiakZikaLauncher(QMainWindow):
                 
                 # Atualiza versão dos assets local
                 if self.remote_config:
-                    self.local_config["assetsVersion"] = self.remote_config.get("assetsVersion", "1.0.0")
+                    # Assets do ZIP são versão base - launcher vai verificar e baixar se necessário
+                    self.local_config["assetsVersion"] = "1.0.0"  # Versão base do ZIP
+                    # Força verificação de assets após instalar cliente
+                    QTimer.singleShot(1000, self.check_for_updates)
                     self.save_local_config()
                 
                 self.status_label.setText("✅ Assets atualizados!")
@@ -929,17 +932,28 @@ class BaiakZikaLauncher(QMainWindow):
                 # Atualiza versões locais
                 if self.remote_config:
                     self.local_config["version"] = self.remote_config.get("clientVersion", "1.0.0")
-                    self.local_config["assetsVersion"] = self.remote_config.get("assetsVersion", "1.0.0")
+                    # Assets do ZIP são versão base - launcher vai verificar e baixar se necessário
+                    self.local_config["assetsVersion"] = "1.0.0"  # Versão base do ZIP
+                    # Força verificação de assets após instalar cliente
+                    QTimer.singleShot(1000, self.check_for_updates)
                     self.save_local_config()
                     self.version_label.setText(f"Versão {self.local_config['version']}")
                 
-                self.status_label.setText("✅ Atualização concluída!")
-                self.progress_bar.setVisible(False)
-                self.play_btn.setVisible(True)
-                self.play_btn.setEnabled(True)
-                self.update_btn.setVisible(False)
-                
-                styled_message(self, "✅ Sucesso", "Cliente atualizado com sucesso!\n\nSuas configurações foram preservadas.", "info")
+                # Verificar se precisa baixar assets atualizados
+                remote_assets = self.remote_config.get("assetsVersion", "1.0.0") if self.remote_config else "1.0.0"
+                if self.compare_versions(remote_assets, "1.0.0") > 0:
+                    # Assets do servidor são mais novos que o ZIP - baixar automaticamente
+                    self.status_label.setText("📦 Baixando assets atualizados...")
+                    styled_message(self, "✅ Cliente instalado!", "Cliente instalado!\n\nAgora vamos baixar os assets atualizados...", "info")
+                    self.update_type = "assets"
+                    QTimer.singleShot(500, self.start_update)
+                else:
+                    self.status_label.setText("✅ Atualização concluída!")
+                    self.progress_bar.setVisible(False)
+                    self.play_btn.setVisible(True)
+                    self.play_btn.setEnabled(True)
+                    self.update_btn.setVisible(False)
+                    styled_message(self, "✅ Sucesso", "Cliente atualizado com sucesso!\n\nSuas configurações foram preservadas.", "info")
             
         except Exception as e:
             self.status_label.setText(f"Erro na extração: {str(e)}")
