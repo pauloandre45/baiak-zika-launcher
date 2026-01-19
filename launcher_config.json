@@ -1,13 +1,13 @@
 {
   "clientVersion": "1.0.0",
   "assetsVersion": "1.0.2",
-  "launcherVersion": "1.0.12",
+  "launcherVersion": "1.0.0",
   "replaceFolders": false,
   "replaceFolderName": [],
   "clientFolder": "",
   "newClientUrl": "https://github.com/pauloandre45/baiak-zika-launcher/releases/download/v1.0.0/Baiak-zika-15.zip",
   "assetsDownloadUrl": "https://github.com/pauloandre45/baiak-zika-launcher/releases/download/v1.0.0/assets_v2.zip",
-  "newLauncherUrl": "https://github.com/pauloandre45/baiak-zika-launcher/releases/download/v1.0.12/Baiak-Zika-Setup.exe",
+  "newLauncherUrl": "",
   "newConfigUrl": "",
   "clientExecutable": "client.exe",
   "namelauncher": "Baiak-Zika"

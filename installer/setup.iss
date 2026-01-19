@@ -49,14 +49,14 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "Criar atalho na Área de Trabalho"; GroupDescription: "Atalhos:"
 
 [Files]
-; Executável principal
-Source: "..\dist\Baiak-Zika.exe"; DestDir: "{app}"; Flags: ignoreversion
+; Executável principal e todas as DLLs (modo onedir)
+Source: "..\dist\Baiak-Zika\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 ; Ícone
 Source: "..\icon.ico"; DestDir: "{app}"; Flags: ignoreversion
 
-; Pasta assets
-Source: "..\dist\assets\*"; DestDir: "{app}\assets"; Flags: ignoreversion recursesubdirs createallsubdirs
+; Pasta assets (já está dentro de Baiak-Zika mas garantir)
+Source: "..\assets\*"; DestDir: "{app}\assets"; Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist
 
 [Icons]
 ; Atalho na Área de Trabalho com ícone do Tibia

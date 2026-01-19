@@ -5,16 +5,6 @@ Auto-update system for game client - Modern UI Version
 
 import sys
 import os
-
-# Suprimir warnings do PyInstaller no Windows ANTES de qualquer coisa
-if sys.platform == 'win32':
-    # Desabilita o Error Mode do Windows para suprimir popups de erro
-    import ctypes
-    # SEM_FAILCRITICALERRORS = 0x0001 - Não mostra dialog de erro crítico
-    # SEM_NOGPFAULTERRORBOX = 0x0002 - Não mostra dialog de GPF
-    # SEM_NOOPENFILEERRORBOX = 0x8000 - Não mostra dialog de arquivo não encontrado
-    ctypes.windll.kernel32.SetErrorMode(0x0001 | 0x0002 | 0x8000)
-
 import json
 import zipfile
 import shutil
@@ -23,44 +13,7 @@ import urllib.request
 import ssl
 import base64
 import webbrowser
-import tempfile
-import glob
-import atexit
 from pathlib import Path
-
-
-def cleanup_mei_folders():
-    """
-    Limpa pastas temporárias _MEI* do PyInstaller silenciosamente.
-    Isso evita o aviso 'Failed to remove temporary directory'.
-    """
-    try:
-        temp_dir = tempfile.gettempdir()
-        mei_pattern = os.path.join(temp_dir, '_MEI*')
-        
-        # Pega o PID atual para não deletar a pasta que estamos usando
-        current_mei = getattr(sys, '_MEIPASS', None)
-        
-        for mei_folder in glob.glob(mei_pattern):
-            # Não deleta a pasta que o processo atual está usando
-            if current_mei and mei_folder == current_mei:
-                continue
-            
-            try:
-                # Tenta remover a pasta (só funciona se não estiver em uso)
-                shutil.rmtree(mei_folder, ignore_errors=True)
-            except:
-                pass  # Ignora erros silenciosamente
-    except:
-        pass  # Ignora qualquer erro
-
-
-# Limpa pastas MEI antigas ao iniciar
-cleanup_mei_folders()
-
-# Registra limpeza ao sair (silenciosa)
-atexit.register(cleanup_mei_folders)
-
 
 try:
     from PyQt5.QtWidgets import (
@@ -928,7 +881,7 @@ class BaiakZikaLauncher(QMainWindow):
                 # Remove o ZIP
                 os.remove(zip_path)
                 
-                # Atualiza versão dos assets local com a versão CORRETA do servidor
+                # Atualiza versão dos assets local
                 if self.remote_config:
                     self.local_config["assetsVersion"] = self.remote_config.get("assetsVersion", "1.0.0")
                     self.save_local_config()
@@ -976,26 +929,17 @@ class BaiakZikaLauncher(QMainWindow):
                 # Atualiza versões locais
                 if self.remote_config:
                     self.local_config["version"] = self.remote_config.get("clientVersion", "1.0.0")
-                    # Assets do ZIP são versão 1.0.0 (base) - verificação automática logo abaixo
-                    self.local_config["assetsVersion"] = "1.0.0"
+                    self.local_config["assetsVersion"] = self.remote_config.get("assetsVersion", "1.0.0")
                     self.save_local_config()
                     self.version_label.setText(f"Versão {self.local_config['version']}")
                 
-                # Verificar se precisa baixar assets atualizados
-                remote_assets = self.remote_config.get("assetsVersion", "1.0.0") if self.remote_config else "1.0.0"
-                if self.compare_versions(remote_assets, "1.0.0") > 0:
-                    # Assets do servidor são mais novos que o ZIP - baixar automaticamente
-                    self.status_label.setText("📦 Baixando assets atualizados...")
-                    styled_message(self, "✅ Cliente instalado!", "Cliente instalado!\n\nAgora vamos baixar os assets atualizados...", "info")
-                    self.update_type = "assets"
-                    QTimer.singleShot(500, self.start_update)
-                else:
-                    self.status_label.setText("✅ Atualização concluída!")
-                    self.progress_bar.setVisible(False)
-                    self.play_btn.setVisible(True)
-                    self.play_btn.setEnabled(True)
-                    self.update_btn.setVisible(False)
-                    styled_message(self, "✅ Sucesso", "Cliente atualizado com sucesso!\n\nSuas configurações foram preservadas.", "info")
+                self.status_label.setText("✅ Atualização concluída!")
+                self.progress_bar.setVisible(False)
+                self.play_btn.setVisible(True)
+                self.play_btn.setEnabled(True)
+                self.update_btn.setVisible(False)
+                
+                styled_message(self, "✅ Sucesso", "Cliente atualizado com sucesso!\n\nSuas configurações foram preservadas.", "info")
             
         except Exception as e:
             self.status_label.setText(f"Erro na extração: {str(e)}")
@@ -1011,54 +955,14 @@ class BaiakZikaLauncher(QMainWindow):
         if os.path.exists(client_path):
             try:
                 self.status_label.setText("Iniciando jogo...")
-                
-                # Usa ShellExecute no Windows para evitar WinError 740
-                # Isso permite executar o programa sem exigir elevação do launcher
+                # Usar subprocess.Popen com flags corretas
                 if sys.platform == 'win32':
-                    import ctypes
-                    # Obtém o diretório do client.exe para usar como working directory
-                    client_dir = os.path.dirname(client_path)
-                    if not client_dir:
-                        client_dir = self.app_path
-                    
-                    # ShellExecuteW com 'open' não força elevação
-                    # Retorna > 32 em caso de sucesso
-                    result = ctypes.windll.shell32.ShellExecuteW(
-                        None,           # hwnd - handle da janela pai
-                        "open",         # lpOperation - 'open' executa sem forçar admin
-                        client_path,    # lpFile - arquivo a executar
-                        None,           # lpParameters - argumentos
-                        client_dir,     # lpDirectory - working directory
-                        1               # nShowCmd - SW_SHOWNORMAL
-                    )
-                    
-                    if result > 32:
-                        # Sucesso - fecha o launcher
-                        QTimer.singleShot(1000, QApplication.quit)
-                    else:
-                        # Falhou - mostra erro específico
-                        error_codes = {
-                            0: "Sistema sem memória",
-                            2: "Arquivo não encontrado",
-                            3: "Caminho não encontrado", 
-                            5: "Acesso negado",
-                            8: "Memória insuficiente",
-                            11: "Formato EXE inválido",
-                            26: "Erro de compartilhamento",
-                            27: "Associação de arquivo incompleta",
-                            28: "Timeout na operação",
-                            29: "Falha na DDE",
-                            30: "Transação DDE cancelada",
-                            31: "Sem associação de arquivo",
-                            32: "DLL não encontrada"
-                        }
-                        error_msg = error_codes.get(result, f"Código de erro: {result}")
-                        raise Exception(f"ShellExecute falhou: {error_msg}")
+                    subprocess.Popen([client_path], cwd=self.app_path, 
+                                   creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP)
                 else:
-                    # Linux/Mac - usa subprocess normal
                     subprocess.Popen([client_path], cwd=self.app_path)
-                    QTimer.singleShot(1000, QApplication.quit)
-                    
+                # Fecha o launcher após iniciar o jogo
+                QTimer.singleShot(1000, QApplication.quit)
             except Exception as e:
                 styled_message(self, "❌ Erro", f"Erro ao iniciar o jogo:\n\n{str(e)}", "error")
         else:

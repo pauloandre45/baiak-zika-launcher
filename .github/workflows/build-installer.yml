@@ -24,13 +24,12 @@ jobs:
     
     - name: Build EXE
       run: |
-        pyinstaller --onefile --windowed --name "Baiak-Zika" --icon="icon.ico" --add-data "assets;assets" launcher.py
+        pyinstaller --onedir --windowed --clean --name "Baiak-Zika" --icon="icon.ico" --add-data "assets;assets" launcher.py
     
     - name: Prepare dist folder
       run: |
-        mkdir -p dist/assets
-        copy icon.ico dist\icon.ico
-        xcopy /E /I assets dist\assets
+        copy icon.ico dist\Baiak-Zika\icon.ico
+        xcopy /E /I assets dist\Baiak-Zika\assets
       shell: cmd
 
     - name: Install Inno Setup
