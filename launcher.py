@@ -13,7 +13,44 @@ import urllib.request
 import ssl
 import base64
 import webbrowser
+import tempfile
+import glob
+import atexit
 from pathlib import Path
+
+
+def cleanup_mei_folders():
+    """
+    Limpa pastas temporárias _MEI* do PyInstaller silenciosamente.
+    Isso evita o aviso 'Failed to remove temporary directory'.
+    """
+    try:
+        temp_dir = tempfile.gettempdir()
+        mei_pattern = os.path.join(temp_dir, '_MEI*')
+        
+        # Pega o PID atual para não deletar a pasta que estamos usando
+        current_mei = getattr(sys, '_MEIPASS', None)
+        
+        for mei_folder in glob.glob(mei_pattern):
+            # Não deleta a pasta que o processo atual está usando
+            if current_mei and mei_folder == current_mei:
+                continue
+            
+            try:
+                # Tenta remover a pasta (só funciona se não estiver em uso)
+                shutil.rmtree(mei_folder, ignore_errors=True)
+            except:
+                pass  # Ignora erros silenciosamente
+    except:
+        pass  # Ignora qualquer erro
+
+
+# Limpa pastas MEI antigas ao iniciar
+cleanup_mei_folders()
+
+# Registra limpeza ao sair (silenciosa)
+atexit.register(cleanup_mei_folders)
+
 
 try:
     from PyQt5.QtWidgets import (
