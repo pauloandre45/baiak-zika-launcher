@@ -964,14 +964,54 @@ class BaiakZikaLauncher(QMainWindow):
         if os.path.exists(client_path):
             try:
                 self.status_label.setText("Iniciando jogo...")
-                # Usar subprocess.Popen com flags corretas
+                
+                # Usa ShellExecute no Windows para evitar WinError 740
+                # Isso permite executar o programa sem exigir elevação do launcher
                 if sys.platform == 'win32':
-                    subprocess.Popen([client_path], cwd=self.app_path, 
-                                   creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP)
+                    import ctypes
+                    # Obtém o diretório do client.exe para usar como working directory
+                    client_dir = os.path.dirname(client_path)
+                    if not client_dir:
+                        client_dir = self.app_path
+                    
+                    # ShellExecuteW com 'open' não força elevação
+                    # Retorna > 32 em caso de sucesso
+                    result = ctypes.windll.shell32.ShellExecuteW(
+                        None,           # hwnd - handle da janela pai
+                        "open",         # lpOperation - 'open' executa sem forçar admin
+                        client_path,    # lpFile - arquivo a executar
+                        None,           # lpParameters - argumentos
+                        client_dir,     # lpDirectory - working directory
+                        1               # nShowCmd - SW_SHOWNORMAL
+                    )
+                    
+                    if result > 32:
+                        # Sucesso - fecha o launcher
+                        QTimer.singleShot(1000, QApplication.quit)
+                    else:
+                        # Falhou - mostra erro específico
+                        error_codes = {
+                            0: "Sistema sem memória",
+                            2: "Arquivo não encontrado",
+                            3: "Caminho não encontrado", 
+                            5: "Acesso negado",
+                            8: "Memória insuficiente",
+                            11: "Formato EXE inválido",
+                            26: "Erro de compartilhamento",
+                            27: "Associação de arquivo incompleta",
+                            28: "Timeout na operação",
+                            29: "Falha na DDE",
+                            30: "Transação DDE cancelada",
+                            31: "Sem associação de arquivo",
+                            32: "DLL não encontrada"
+                        }
+                        error_msg = error_codes.get(result, f"Código de erro: {result}")
+                        raise Exception(f"ShellExecute falhou: {error_msg}")
                 else:
+                    # Linux/Mac - usa subprocess normal
                     subprocess.Popen([client_path], cwd=self.app_path)
-                # Fecha o launcher após iniciar o jogo
-                QTimer.singleShot(1000, QApplication.quit)
+                    QTimer.singleShot(1000, QApplication.quit)
+                    
             except Exception as e:
                 styled_message(self, "❌ Erro", f"Erro ao iniciar o jogo:\n\n{str(e)}", "error")
         else:

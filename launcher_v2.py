@@ -719,10 +719,54 @@ class BaiakZikaLauncherV2(QMainWindow):
         if os.path.exists(client_path):
             try:
                 self.status_label.setText("Iniciando jogo...")
-                subprocess.Popen([client_path], cwd=self.app_path)
-                QApplication.quit()
+                
+                # Tenta executar usando ShellExecute com 'open' (sem elevação)
+                # Isso evita o WinError 740 quando o EXE não precisa realmente de admin
+                if sys.platform == 'win32':
+                    import ctypes
+                    # SW_SHOWNORMAL = 1
+                    result = ctypes.windll.shell32.ShellExecuteW(
+                        None,           # hwnd
+                        "open",         # lpOperation - 'open' não força elevação
+                        client_path,    # lpFile
+                        None,           # lpParameters
+                        self.app_path,  # lpDirectory (working directory)
+                        1               # nShowCmd (SW_SHOWNORMAL)
+                    )
+                    # ShellExecute retorna > 32 em caso de sucesso
+                    if result > 32:
+                        QApplication.quit()
+                    else:
+                        # Se falhar, tenta método alternativo
+                        raise Exception(f"ShellExecute falhou com código {result}")
+                else:
+                    # Linux/Mac - usa subprocess normal
+                    subprocess.Popen([client_path], cwd=self.app_path)
+                    QApplication.quit()
+                    
             except Exception as e:
-                QMessageBox.critical(self, "Erro", f"Erro ao iniciar: {str(e)}")
+                error_msg = str(e)
+                # Se ainda falhar, tenta com subprocess como fallback
+                try:
+                    # Tenta com CREATE_NO_WINDOW e sem shell
+                    startupinfo = None
+                    if sys.platform == 'win32':
+                        startupinfo = subprocess.STARTUPINFO()
+                        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                    subprocess.Popen(
+                        [client_path], 
+                        cwd=self.app_path,
+                        startupinfo=startupinfo
+                    )
+                    QApplication.quit()
+                except Exception as e2:
+                    QMessageBox.critical(
+                        self, 
+                        "Erro ao iniciar o jogo",
+                        f"Não foi possível iniciar o cliente.\n\n"
+                        f"Erro: {str(e2)}\n\n"
+                        f"Tente executar o client.exe diretamente da pasta do jogo."
+                    )
         else:
             QMessageBox.warning(
                 self, 
